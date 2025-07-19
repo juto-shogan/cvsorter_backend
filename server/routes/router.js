@@ -1,6 +1,6 @@
 // server/routes/main.js
 // importing necessary modules
-const express = require('express');
+import  express from 'express';
 const router = express.Router();
 
 // starter routes
@@ -16,11 +16,11 @@ router.get('/contact', (req, res) => {
     res.send('This is the contact page.');
 });
 
-router.post('/upload-cv', (req, res) => {
+router.get('/upload-cv', (req, res) => {
     // Handle file upload logic here
     res.send('CV uploaded successfully!');
 });
 
 
 // Exporting the router
-module.exports = router;
+export default router;
