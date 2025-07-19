@@ -1,23 +1,34 @@
-require('dotenv').config();
+import 'dotenv/config';  
 
-// Importing the express module
-const express = require('express');
-const app = express();
+// importings
+// server/routes/router.js
+import router from './server/routes/router.js';
 
 // Importing the database connection function
-const connectDB = require('./server/config/db');
+import connectDB from './server/config/db.js';
+
+// Importing the express module
+import express from 'express';
+const app = express();
+
+// routes
+app.use('/api', router);
+
 
 // port 
 const PORT = process.env.PORT || 5000;
+try{
+    // Connecting to the database
+    console.log('Connecting to the database...');
+    await connectDB();
 
-// Connecting to the database
-connectDB();
-
-
-// routes
-app.use('/', require('./server/routes/main'));
-
-// listening to the server
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-}); 
+    // listening to the server
+    console.log('server stared......')
+    app.listen(PORT, () => {
+        console.log(`Server is running on port http://localhost:${PORT}`);
+    });
+}catch(error){
+    console.error(`Error: ${error.message}`);
+    console.log(error);
+    process.exit(1);
+}
