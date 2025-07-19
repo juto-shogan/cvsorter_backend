@@ -1,0 +1,25 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "mbonu somto",
+  "license": "ISC",
+  "description": "a backend for the cvsorter_webapp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juto-shogan/cvsorter_backend.git"
+  },
+  "keywords": [
+    "sd_project"
+  ],
+  "bugs": {
+    "url": "https://github.com/juto-shogan/cvsorter_backend/issues"
+  },
+  "homepage": "https://github.com/juto-shogan/cvsorter_backend#readme",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
