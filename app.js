@@ -23,7 +23,7 @@ try{
     await connectDB();
 
     // listening to the server
-    console.log('server stared......')
+    console.log('server started......')
     app.listen(PORT, () => {
         console.log(`Server is running on port http://localhost:${PORT}`);
     });
