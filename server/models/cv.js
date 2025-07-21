@@ -38,5 +38,6 @@ const cvSchema = new mongoose.Schema({
   uploadDate: { type: Date, default: Date.now },
   lastModified: { type: Date, default: Date.now }
 }, { timestamps: true });
+
 // Export the model for use in other files
 module.exports = mongoose.model('CV', cvSchema);

@@ -59,10 +59,10 @@ class CVAnalyzer {
         }
     }
 
-    // Main analysis function using logic from your main.py file
+    // Main analysis function that combines both sets of logic
     async analyzeCV(text, fileName) {
         try {
-            // Your original cv_checker function from main.py
+            // --- Your original main.py logic (now correctly integrated) ---
             const cvChecker = (content, keywords) => {
                 const matchedKeywords = [];
                 for (const keyword of keywords) {
@@ -73,7 +73,6 @@ class CVAnalyzer {
                 return matchedKeywords;
             };
 
-            // Your original determine_role function from main.py
             const determineRole = (content) => {
                 let maxMatches = 0;
                 let bestRole = null;
@@ -93,15 +92,12 @@ class CVAnalyzer {
                 return { bestRole, roleDetails: bestRoleDetails, score: maxMatches };
             };
             
-            // Your original grader function from main.py
             const grader = (count, roleDetails) => {
                 if (!roleDetails || !roleDetails.keywords) return 'Failed';
-
                 const numberOfKeywords = roleDetails.keywords.length;
                 if (numberOfKeywords === 0) {
                     return 'Under consideration';
                 }
-
                 if (count >= numberOfKeywords / 2) {
                     if (count === numberOfKeywords) {
                         return 'Passed';
@@ -113,23 +109,132 @@ class CVAnalyzer {
                 }
             };
 
-            // Determine the best role and get analysis details
             const { bestRole, roleDetails, score } = determineRole(text);
             const matchedKeywords = cvChecker(text, roleDetails ? roleDetails.keywords : []);
             const grade = grader(score, roleDetails);
 
+            // --- Your new extraction logic (now correctly integrated) ---
+            const candidateName = this.extractName(text);
+            const position = this.extractPosition(text);
+            const experience = this.extractExperience(text);
+            const skills = this.extractSkills(text);
+            const education = this.extractEducation(text);
+            const location = this.extractLocation(text);
+            const email = this.extractEmail(text);
+            const phone = this.extractPhone(text);
+            
+            // Return all the data your controller is expecting
             return {
-                filename: fileName,
+                fileName: fileName,
                 extracted_text: text,
-                best_role: bestRole,
-                score: score,
-                grade: grade,
-                matched_keywords: matchedKeywords
+                best_role: bestRole, // From main.py logic
+                score: score, // From main.py logic
+                grade: grade, // From main.py logic
+                matched_keywords: matchedKeywords, // From main.py logic
+                
+                // Fields from your new extraction logic
+                candidateName,
+                position,
+                experience,
+                skills,
+                education,
+                location,
+                email,
+                phone
             };
 
         } catch (error) {
             throw new Error(`CV analysis failed: ${error.message}`);
         }
+    }
+
+    // All of your new extraction methods from your previous code block
+    extractName(text) {
+        const namePatterns = [
+            /Name[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)/i,
+            /^([A-Z][a-z]+\s+[A-Z][a-z]+)/m,
+        ];
+        for (const pattern of namePatterns) {
+            const match = text.match(pattern);
+            if (match) return match[1].trim();
+        }
+        return 'Unknown Candidate';
+    }
+
+    extractEmail(text) {
+        const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
+        const match = text.match(emailRegex);
+        return match ? match[0] : '';
+    }
+
+    extractPhone(text) {
+        const phoneRegex = /(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/;
+        const match = text.match(phoneRegex);
+        return match ? match[0] : '';
+    }
+
+    extractLocation(text) {
+        const locationPatterns = [
+            /Location[:\s]+([A-Z][a-z]+(?:,\s*[A-Z][a-z]+)*)/i,
+            /Address[:\s]+([A-Z][a-z]+(?:,\s*[A-Z][a-z]+)*)/i,
+        ];
+        for (const pattern of locationPatterns) {
+            const match = text.match(pattern);
+            if (match) return match[1].trim();
+        }
+        return 'Not specified';
+    }
+
+    extractPosition(text) {
+        const positionKeywords = [
+            'Software Engineer', 'Developer', 'Data Scientist', 'Product Manager',
+            'Designer', 'Analyst', 'Consultant', 'Manager', 'Director'
+        ];
+        for (const keyword of positionKeywords) {
+            if (text.toLowerCase().includes(keyword.toLowerCase())) {
+                return keyword;
+            }
+        }
+        return 'General Position';
+    }
+
+    extractExperience(text) {
+        const expPatterns = [
+            /(\d+)[\+\-\s]*years?\s*(of\s*)?experience/i,
+            /experience[:\s]+(\d+)[\+\-\s]*years?/i,
+            /(\d+)[\+\-\s]*years?\s*in/i
+        ];
+        for (const pattern of expPatterns) {
+            const match = text.match(pattern);
+            if (match) return parseInt(match[1]);
+        }
+        return 0;
+    }
+
+    extractSkills(text) {
+        const skillsKeywords = [
+            'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'Angular', 'Vue.js',
+            'HTML', 'CSS', 'SQL', 'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'Git',
+            'Machine Learning', 'Data Analysis', 'Project Management', 'Agile'
+        ];
+        const foundSkills = [];
+        const textLower = text.toLowerCase();
+        for (const skill of skillsKeywords) {
+            if (textLower.includes(skill.toLowerCase())) {
+                foundSkills.push(skill);
+            }
+        }
+        return foundSkills;
+    }
+
+    extractEducation(text) {
+        const educationLevels = ['PhD', 'Master', 'Bachelor', 'Associate', 'Diploma'];
+        for (const level of educationLevels) {
+            if (text.toLowerCase().includes(level.toLowerCase())) {
+                return level;
+            }
+        }
+        return 'Not specified';
     }
 }
 
