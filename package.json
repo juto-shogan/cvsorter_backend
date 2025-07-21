@@ -23,13 +23,16 @@
   "homepage": "https://github.com/juto-shogan/cvsorter_backend#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.9.1",
     "mongodb": "^6.17.0",
     "mongoose": "^8.16.4",
     "mongoose-sequence": "^6.0.1",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
