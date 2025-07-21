@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 const AutoIncrement = require('mongoose-sequence')(mongoose);
 
 // server/models/user.js
@@ -8,10 +9,6 @@ const AutoIncrement = require('mongoose-sequence')(mongoose);
 const userSchema = new mongoose.Schema({
   company_id: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
-  },
-  username: {
-    type: String,
     required: true,
   },
   email: {
@@ -28,6 +25,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     minlength: 6,
   },
+  role:{
+    type: String,
+    default: 'hr',
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -37,4 +38,28 @@ const userSchema = new mongoose.Schema({
 // Add auto-incrementing id field
 userSchema.plugin(AutoIncrement, { inc_field: 'id' });
 
-module.exports = mongoose.model('User', userSchema);
+// Hash passwords after saving
+userSchema.pre('save', async function (next) {
+  const email = this.email;
+  const user = await UserModel.findOne({ email });
+  try{
+    if (user) {
+      const emailExists = new Error("Email already in use");
+      return next(emailExists);
+    }
+  }catch (error) {
+    throw new Error(error);
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+
+});
+
+// Compare password method
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+const UserModel = mongoose.model('User', userSchema);
+export default UserModel;
