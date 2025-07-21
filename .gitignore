@@ -3,5 +3,4 @@
 .vscode
 
 # Venvs
-.env
 node_modules/
