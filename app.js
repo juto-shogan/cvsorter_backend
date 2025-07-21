@@ -1,6 +1,5 @@
 import 'dotenv/config';  
-
-// importings
+import cors from 'cors';
 // server/routes/router.js
 import router from './server/routes/router.js';
 
@@ -14,6 +13,7 @@ const app = express();
 // routes
 app.use('/api', router);
 
+app.use(cors());
 
 // port 
 const PORT = process.env.PORT || 5000;
@@ -29,6 +29,5 @@ try{
     });
 }catch(error){
     console.error(`Error: ${error.message}`);
-    console.log(error);
     process.exit(1);
 }
