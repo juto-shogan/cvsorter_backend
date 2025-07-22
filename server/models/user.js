@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
-const AutoIncrement = require('mongoose-sequence')(mongoose);
 
 // server/models/user.js
 // users model schema
@@ -39,9 +38,6 @@ const userSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
-
-// Add auto-incrementing id field
-userSchema.plugin(AutoIncrement, { inc_field: 'id' });
 
 // Hash passwords after saving
 userSchema.pre('save', async function (next) {

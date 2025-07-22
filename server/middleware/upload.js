@@ -1,9 +1,13 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+// src/middleware/upload.js
+
+import multer from 'multer';       // Use import for multer
+import path from 'path';         // Use import for path
+import fs from 'fs';             // Use import for fs
 
 // Ensure uploads directory exists
 const uploadsDir = 'uploads';
+// Using fs.existsSync and fs.mkdirSync for synchronous directory creation
+// as this typically runs once at server startup.
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -24,24 +28,24 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
     'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    'application/msword', // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
   ];
-  
+
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
+    // You can provide a more descriptive error message to the user
     cb(new Error('Invalid file type. Only PDF, DOC, and DOCX files are allowed.'), false);
   }
 };
 
 // Configure upload middleware
-const upload = multer({
+// Export this directly as a named export
+export const upload = multer({ // Changed to 'export const'
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 1024 * 1024 * 5 // 5MB limit
   },
   fileFilter: fileFilter
 });
-
-module.exports = upload;

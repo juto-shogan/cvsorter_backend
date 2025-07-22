@@ -1,26 +1,38 @@
-// server/routes/auth.js
-// importing necessary modules
-import  express from 'express';
+// src/routes/auth.js
+import express from 'express';
+import { createUser, loginUser } from '../controllers/authController.js'; 
+import { validateUserRegistration, validateUserLogin } from '../middleware/validation.js'; // <--- Import validation middleware
+import { authenticateUser } from '../middleware/auth.js'; 
+
 const router = express.Router();
 
-// starter routes
-router.get('/', (req, res) => {
-    res.send('Welcome to the API!');
+/**
+ * @route POST /api/auth/register
+ * @description Register a new user
+ * @access Public
+ */
+router.post('/register', validateUserRegistration, createUser); // <--- Use validation middleware
+
+/**
+ * @route POST /api/auth/login
+ * @description Authenticate and log in a user
+ * @access Public
+ */
+router.post('/login', validateUserLogin, loginUser); // <--- Use validation middleware
+
+// ... (other routes like /profile)
+router.get('/profile', authenticateUser, (req, res) => {
+    res.json({ 
+        success: true,
+        message: 'Welcome to your profile!', 
+        user: {
+            id: req.user._id,
+            username: req.user.username,
+            email: req.user.email,
+            role: req.user.role,
+            company_id: req.user.company_id,
+        }
+    });
 });
 
-router.get('/dashboard', (req, res) => {
-    res.send('This is the about page.');
-});
-
-router.get('/contact', (req, res) => {
-    res.send('This is the contact page.');
-});
-
-router.get('/upload-cv', (req, res) => {
-    // Handle file upload logic here
-    res.send('CV uploaded successfully!');
-});
-
-
-// Exporting the router'
-export default auth;
+export default router;

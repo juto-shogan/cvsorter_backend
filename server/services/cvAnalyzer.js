@@ -1,241 +1,160 @@
-const pdfParse = require('pdf-parse');
-const mammoth = require('mammoth');
-const fs = require('fs').promises;
+// src/services/cvAnalyzer.js
 
-// Keywords for different professions, converted from your Python dictionary
-const professionKeywords = {
-    'software_dev_Keywords': {
-        'keywords': ['python', 'java', 'c++', 'javascript', 'html', 'css', 'sql', 'ruby', 'php', 'agile', 'scrum', 'restful APIs', 'microservices', 'devops', 'git', 'docker', 'kubernetes'],
-        'experience_levels': ['entry-level (0-2 years)', 'junior (2-4 years)', 'mid-level (4-7 years)', 'senior (7+ years)', 'lead (10+ years)'],
-        'related_roles': ['Software Engineer', 'Web Developer', 'Backend Developer', 'Frontend Developer', 'Full-Stack Developer', 'Mobile Developer', 'Application Developer'],
-        'potential_needs': ['Bachelor\'s degree in Computer Science or related field', 'Strong problem-solving skills', 'Experience with specific frameworks (e.g., React, Angular, Spring, Django)', 'Understanding of software development lifecycle']
-    },
-    'data_science_keywords': {
-        'keywords': ['python', 'r', 'sql', 'machine learning', 'statistics', 'data analysis', 'data visualization', 'big data', 'deep learning', 'natural language processing (NLP)', 'time series analysis', 'statistical modeling', 'etl'],
-        'experience_levels': ['entry-level (0-2 years)', 'junior (2-4 years)', 'mid-level (4-7 years)', 'senior (7+ years)', 'lead (10+ years)'],
-        'related_roles': ['Data Scientist', 'Data Analyst', 'Machine Learning Engineer', 'Business Analyst', 'Data Engineer', 'Research Scientist'],
-        'potential_needs': ['Bachelor\'s or Master\'s degree in a quantitative field (e.g., Statistics, Mathematics, Computer Science)', 'Experience with data manipulation libraries (e.g., pandas, numpy)', 'Experience with visualization tools (e.g., matplotlib, seaborn, Tableau)', 'Strong analytical and problem-solving skills']
-    },
-    'customer_service_keywords': {
-        'keywords': ['customer service', 'communication', 'problem solving', 'teamwork', 'adaptability', 'active listening', 'empathy', 'conflict resolution', 'phone etiquette', 'email communication', 'crm', 'customer satisfaction'],
-        'experience_levels': ['entry-level (0-2 years)', 'associate (1-3 years)', 'specialist (3-5 years)', 'senior (5+ years)', 'manager (7+ years)'],
-        'related_roles': ['Customer Service Representative', 'Customer Support Specialist', 'Account Manager', 'Client Relations Manager', 'Help Desk Agent'],
-        'potential_needs': ['High school diploma or equivalent', 'Excellent verbal and written communication skills', 'Ability to remain calm under pressure', 'Strong interpersonal skills']
-    },
-    'cyber_security_keywords': {
-        'keywords': ['network security', 'firewall', 'encryption', 'penetration testing', 'incident response', 'linux', 'information security', 'vulnerability assessment', 'security analysis', 'ids/ips', 'siem', 'risk management', 'compliance'],
-        'experience_levels': ['entry-level (0-2 years)', 'junior (2-4 years)', 'security analyst (3-6 years)', 'security engineer (5-8 years)', 'security architect (7+ years)', 'security manager (10+ years)'],
-        'related_roles': ['Cybersecurity Analyst', 'Security Engineer', 'Security Consultant', 'Information Security Analyst', 'Penetration Tester', 'Security Architect', 'Security Manager'],
-        'potential_needs': ['Bachelor\'s degree in Computer Science, Cybersecurity, or related field', 'Relevant certifications (e.g., CompTIA Security+, CISSP, CEH)', 'Understanding of security principles and best practices', 'Experience with security tools and technologies']
-    },
-    'standard_keywords': {
-        'keywords': ['communication', 'teamwork', 'problem solving', 'adaptability', 'leadership', 'time management', 'critical thinking', 'creativity', 'attention to detail', 'interpersonal skills', 'organization', 'initiative', 'professionalism', 'collaboration'],
-        'experience_levels': ['applicable across all experience levels'],
-        'related_roles': ['relevant to virtually all roles'],
-        'potential_needs': ['demonstrated ability in relevant situations']
-    }
+// --- CV Keywords and Analysis Data (Moved here from a hypothetical cvKeywords.js) ---
+const jobRoleKeywords = {
+  'software developer': {
+    keywords: ['java', 'python', 'javascript', 'react', 'node.js', 'sql', 'html', 'css', 'git', 'agile', 'frontend', 'backend', 'fullstack', 'api'],
+    min_score: 50,
+    soft_skills: ['problem-solving', 'attention to detail', 'collaboration', 'communication'],
+    experience_levels: ['junior', 'mid-level', 'senior'],
+    related_roles: ['web developer', 'mobile developer', 'backend engineer', 'frontend engineer'],
+    potential_needs: ['data structures', 'algorithms', 'system design']
+  },
+  'data scientist': {
+    keywords: ['python', 'r', 'sql', 'machine learning', 'deep learning', 'statistics', 'tableau', 'power bi', 'aws', 'azure', 'gcp', 'data visualization', 'nlp', 'pandas', 'numpy'],
+    min_score: 55,
+    soft_skills: ['analytical thinking', 'curiosity', 'communication', 'problem-solving'],
+    experience_levels: ['entry-level', 'associate', 'lead'],
+    related_roles: ['machine learning engineer', 'data analyst', 'statistician'],
+    potential_needs: ['big data', 'cloud computing', 'A/B testing']
+  },
+  'customer service': {
+    keywords: ['customer support', 'troubleshooting', 'communication', 'problem-solving', 'empathy', 'crm', 'ticketing system', 'call center', 'help desk', 'active listening'],
+    min_score: 40,
+    soft_skills: ['patience', 'interpersonal skills', 'conflict resolution', 'adaptability'],
+    experience_levels: ['associate', 'specialist', 'team lead'],
+    related_roles: ['support agent', 'client representative'],
+    potential_needs: ['product knowledge', 'escalation procedures']
+  },
+  'cyber security': {
+    keywords: ['network security', 'information security', 'firewall', 'intrusion detection', 'vulnerability assessment', 'encryption', 'compliance', 'incident response', 'siem', 'forensics', 'linux', 'cloud security'],
+    min_score: 60,
+    soft_skills: ['critical thinking', 'attention to detail', 'problem-solving', 'adaptability'],
+    experience_levels: ['analyst', 'engineer', 'architect'],
+    related_roles: ['security analyst', 'infosec specialist'],
+    potential_needs: ['penetration testing', 'risk management', 'threat intelligence']
+  }
+  // Add more job roles and their associated keywords/criteria here
 };
+
+// --- End of CV Keywords and Analysis Data ---
+
 
 class CVAnalyzer {
 
-    // Extract text from different file types using your provided logic
-    async extractText(filePath, mimeType) {
-        try {
-            switch (mimeType) {
-                case 'application/pdf':
-                    const pdfBuffer = await fs.readFile(filePath);
-                    const pdfData = await pdfParse(pdfBuffer);
-                    return pdfData.text.toLowerCase();
+  /**
+   * Analyzes the extracted text of a CV to determine candidate details, skills, experience, and score.
+   * This method now expects pre-extracted text.
+   * @param {string} extractedText - The full text content extracted from the CV.
+   * @param {string} originalFilename - The original name of the CV file.
+   * @returns {Object} An object containing the analysis results.
+   */
+  async analyzeCV(extractedText, originalFilename) {
+    console.log("Starting CV analysis for:", originalFilename);
+    const content = extractedText.toLowerCase(); // Work with lowercase content for easier matching
 
-                case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-                    const docxResult = await mammoth.extractRawText({ path: filePath });
-                    return docxResult.value.toLowerCase();
+    // Step 1: Determine the best role based on keywords
+    let bestRole = "General Applicant";
+    let roleDetails = jobRoleKeywords['software developer']; // Default or fallback role details
+    let maxMatchCount = 0;
 
-                default:
-                    throw new Error('Unsupported file type');
-            }
-        } catch (error) {
-            throw new Error(`Text extraction failed: ${error.message}`);
+    for (const role in jobRoleKeywords) {
+      const currentRoleDetails = jobRoleKeywords[role];
+      let currentMatchCount = 0;
+      currentRoleDetails.keywords.forEach(keyword => {
+        if (content.includes(keyword.toLowerCase())) {
+          currentMatchCount++;
         }
+      });
+
+      // Also check for soft skills as a bonus
+      currentRoleDetails.soft_skills.forEach(skill => {
+        if (content.includes(skill.toLowerCase())) {
+          currentMatchCount += 0.5; // Give soft skills a slightly lower weight
+        }
+      });
+
+      if (currentMatchCount > maxMatchCount) {
+        maxMatchCount = currentMatchCount;
+        bestRole = role;
+        roleDetails = currentRoleDetails;
+      }
     }
 
-    // Main analysis function that combines both sets of logic
-    async analyzeCV(text, fileName) {
-        try {
-            // --- Your original main.py logic (now correctly integrated) ---
-            const cvChecker = (content, keywords) => {
-                const matchedKeywords = [];
-                for (const keyword of keywords) {
-                    if (content.includes(keyword.toLowerCase())) {
-                        matchedKeywords.push(keyword);
-                    }
+    console.log(`Determined best role: ${bestRole} (Matches: ${maxMatchCount})`);
+
+    // Step 2: Perform CV checking against the determined role's keywords
+    let matchedKeywords = [];
+    let keywordCount = 0;
+    if (roleDetails && roleDetails.keywords) {
+      roleDetails.keywords.forEach(keyword => {
+        if (content.includes(keyword.toLowerCase())) {
+          matchedKeywords.push(keyword);
+          keywordCount++;
+        }
+      });
+    }
+
+    // Step 3: Grade the CV
+    let totalScore = 0;
+    if (roleDetails && roleDetails.min_score) {
+        totalScore = Math.min((keywordCount / roleDetails.keywords.length) * 100, 100); // Basic scoring
+        // Add more sophisticated grading based on your Python logic (soft skills, experience, etc.)
+        
+        // Example: Add points for presence of soft skills
+        if (roleDetails.soft_skills) {
+            roleDetails.soft_skills.forEach(skill => {
+                if (content.includes(skill.toLowerCase())) {
+                    totalScore += 2; // Small bonus for each matched soft skill
                 }
-                return matchedKeywords;
-            };
-
-            const determineRole = (content) => {
-                let maxMatches = 0;
-                let bestRole = null;
-                let bestRoleDetails = null;
-
-                for (const role in professionKeywords) {
-                    const details = professionKeywords[role];
-                    const matchedKeywords = cvChecker(content, details.keywords);
-                    const count = matchedKeywords.length;
-
-                    if (count > maxMatches) {
-                        maxMatches = count;
-                        bestRole = role;
-                        bestRoleDetails = details;
-                    }
-                }
-                return { bestRole, roleDetails: bestRoleDetails, score: maxMatches };
-            };
-            
-            const grader = (count, roleDetails) => {
-                if (!roleDetails || !roleDetails.keywords) return 'Failed';
-                const numberOfKeywords = roleDetails.keywords.length;
-                if (numberOfKeywords === 0) {
-                    return 'Under consideration';
-                }
-                if (count >= numberOfKeywords / 2) {
-                    if (count === numberOfKeywords) {
-                        return 'Passed';
-                    } else {
-                        return 'Under consideration';
-                    }
-                } else {
-                    return 'Failed';
-                }
-            };
-
-            const { bestRole, roleDetails, score } = determineRole(text);
-            const matchedKeywords = cvChecker(text, roleDetails ? roleDetails.keywords : []);
-            const grade = grader(score, roleDetails);
-
-            // --- Your new extraction logic (now correctly integrated) ---
-            const candidateName = this.extractName(text);
-            const position = this.extractPosition(text);
-            const experience = this.extractExperience(text);
-            const skills = this.extractSkills(text);
-            const education = this.extractEducation(text);
-            const location = this.extractLocation(text);
-            const email = this.extractEmail(text);
-            const phone = this.extractPhone(text);
-            
-            // Return all the data your controller is expecting
-            return {
-                fileName: fileName,
-                extracted_text: text,
-                best_role: bestRole, // From main.py logic
-                score: score, // From main.py logic
-                grade: grade, // From main.py logic
-                matched_keywords: matchedKeywords, // From main.py logic
-                
-                // Fields from your new extraction logic
-                candidateName,
-                position,
-                experience,
-                skills,
-                education,
-                location,
-                email,
-                phone
-            };
-
-        } catch (error) {
-            throw new Error(`CV analysis failed: ${error.message}`);
+            });
         }
+        totalScore = Math.min(totalScore, 100); // Cap score at 100
     }
 
-    // All of your new extraction methods from your previous code block
-    extractName(text) {
-        const namePatterns = [
-            /Name[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)/i,
-            /^([A-Z][a-z]+\s+[A-Z][a-z]+)/m,
-        ];
-        for (const pattern of namePatterns) {
-            const match = text.match(pattern);
-            if (match) return match[1].trim();
-        }
-        return 'Unknown Candidate';
-    }
 
-    extractEmail(text) {
-        const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
-        const match = text.match(emailRegex);
-        return match ? match[0] : '';
-    }
+    // Step 4: Extract specific candidate details (requires more advanced regex/NLP)
+    // This part requires more robust implementation based on your main.py's extraction
+    let candidateName = "Unknown Candidate";
+    let email = "N/A";
+    let phone = "N/A";
+    let experience = "N/A";
+    let education = "Not Specified";
+    let location = "Not Specified";
+    let skills = matchedKeywords; // For simplicity, using matched keywords as skills
 
-    extractPhone(text) {
-        const phoneRegex = /(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/;
-        const match = text.match(phoneRegex);
-        return match ? match[0] : '';
-    }
+    // Basic regex examples - make these more robust!
+    const nameMatch = extractedText.match(/Name:\s*([A-Za-z\s]+)/i); // Very basic, needs refinement
+    if (nameMatch && nameMatch[1]) candidateName = nameMatch[1].trim();
+    
+    const emailMatch = extractedText.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+    if (emailMatch && emailMatch[0]) email = emailMatch[0];
 
-    extractLocation(text) {
-        const locationPatterns = [
-            /Location[:\s]+([A-Z][a-z]+(?:,\s*[A-Z][a-z]+)*)/i,
-            /Address[:\s]+([A-Z][a-z]+(?:,\s*[A-Z][a-z]+)*)/i,
-        ];
-        for (const pattern of locationPatterns) {
-            const match = text.match(pattern);
-            if (match) return match[1].trim();
-        }
-        return 'Not specified';
-    }
+    const phoneMatch = extractedText.match(/(\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/);
+    if (phoneMatch && phoneMatch[0]) phone = phoneMatch[0];
 
-    extractPosition(text) {
-        const positionKeywords = [
-            'Software Engineer', 'Developer', 'Data Scientist', 'Product Manager',
-            'Designer', 'Analyst', 'Consultant', 'Manager', 'Director'
-        ];
-        for (const keyword of positionKeywords) {
-            if (text.toLowerCase().includes(keyword.toLowerCase())) {
-                return keyword;
-            }
-        }
-        return 'General Position';
-    }
+    const experienceMatch = extractedText.match(/(\d+\s*years? of experience)/i);
+    if (experienceMatch && experienceMatch[1]) experience = experienceMatch[1];
 
-    extractExperience(text) {
-        const expPatterns = [
-            /(\d+)[\+\-\s]*years?\s*(of\s*)?experience/i,
-            /experience[:\s]+(\d+)[\+\-\s]*years?/i,
-            /(\d+)[\+\-\s]*years?\s*in/i
-        ];
-        for (const pattern of expPatterns) {
-            const match = text.match(pattern);
-            if (match) return parseInt(match[1]);
-        }
-        return 0;
-    }
+    // Status logic (e.g., if score is below min_score, set to 'rejected' or 'under review')
+    let status = totalScore >= (roleDetails ? roleDetails.min_score : 0) ? "pending" : "rejected"; 
+    if (totalScore >= 75) status = "shortlisted"; // Example
+    else if (totalScore < 50) status = "rejected";
 
-    extractSkills(text) {
-        const skillsKeywords = [
-            'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'Angular', 'Vue.js',
-            'HTML', 'CSS', 'SQL', 'MongoDB', 'PostgreSQL', 'AWS', 'Docker', 'Git',
-            'Machine Learning', 'Data Analysis', 'Project Management', 'Agile'
-        ];
-        const foundSkills = [];
-        const textLower = text.toLowerCase();
-        for (const skill of skillsKeywords) {
-            if (textLower.includes(skill.toLowerCase())) {
-                foundSkills.push(skill);
-            }
-        }
-        return foundSkills;
-    }
 
-    extractEducation(text) {
-        const educationLevels = ['PhD', 'Master', 'Bachelor', 'Associate', 'Diploma'];
-        for (const level of educationLevels) {
-            if (text.toLowerCase().includes(level.toLowerCase())) {
-                return level;
-            }
-        }
-        return 'Not specified';
-    }
+    return {
+      candidateName,
+      position: bestRole, // Use the determined best role
+      experience,
+      skills, // This can be refined further (e.g., specific skill extraction)
+      education,
+      location,
+      phone,
+      email,
+      totalScore,
+      status // Initial status, can be changed later
+    };
+  }
 }
 
-module.exports = new CVAnalyzer();
+export default new CVAnalyzer();
