@@ -6,10 +6,6 @@ import bcrypt from 'bcrypt';
 // This schema defines the structure of user documents in the MongoDB database
 // It includes fields for company_id, username, email, password, and createdAt timestamp
 const userSchema = new mongoose.Schema({
-  company_id: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-  },
   username: {
     type: String,
     required: true,
