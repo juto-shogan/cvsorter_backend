@@ -265,10 +265,6 @@ Stores metadata about uploaded CVs, extracted candidate information, and analysi
 
 For contributions, please fork the repository and submit a pull request with your changes. Ensure your code adheres to the project's coding standards and includes relevant tests.
 
-## License
-
-This project is licensed under the MIT License.
-
 ## Contact
 
 For any inquiries, please contact **juto-shogan** at somtombonu53@gmail.com.
