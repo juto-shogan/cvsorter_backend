@@ -1,4 +1,5 @@
 import app from './server/app.js'
+
 // Importing the database connection function
 import connectDB from './server/config/db.js';
 

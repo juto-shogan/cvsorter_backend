@@ -1,10 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 
-// server/models/user.js
-// users model schema
-// This schema defines the structure of user documents in the MongoDB database
-// It includes fields for company_id, username, email, password, and createdAt timestamp
+// Define user schema
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -25,7 +22,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     minlength: 6,
   },
-  role:{
+  role: {
     type: String,
     default: 'hr',
   },
@@ -35,26 +32,20 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-// Hash passwords after saving
+// Pre-save hook to hash password
 userSchema.pre('save', async function (next) {
-  const email = this.email;
-  const user = await UserModel.findOne({ email });
-  try{
-    if (user) {
-      const emailExists = new Error("Email already in use");
-      return next(emailExists);
-    }
-  }catch (error) {
-    throw new Error(error);
+  if (!this.isModified('password')) return next(); // Only hash if password is new/modified
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
   }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-
 });
 
-// Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+// Compare password method for login
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

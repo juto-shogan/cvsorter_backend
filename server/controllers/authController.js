@@ -1,5 +1,4 @@
 import UserModel from "../models/user.js";
-import bcrypt from "bcrypt";
 import { generateToken } from "../config/generateToken.js";
 
 /**
@@ -8,13 +7,13 @@ import { generateToken } from "../config/generateToken.js";
  * @access Public
  */
 export const createUser = async (req, res) => {
-  const { username, email, password } = req.body; // company_id removed per your request
+  const { username, email, password } = req.body;
+
   try {
-    // Basic validation check
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Bad request: Missing required fields (username, email, or password)",
+        message: "Missing required fields: username, email, or password",
       });
     }
 
@@ -29,36 +28,30 @@ export const createUser = async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        message: "Bad request: Password too short. Must be at least 6 characters",
+        message: "Password must be at least 6 characters long.",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await UserModel.create({
-      username,
-      email,
-      password: hashedPassword,
-      // role will default to 'hr' as per your User model setup
-    });
+    const user = await UserModel.create({ username, email, password });
 
     const token = generateToken({ userId: user._id });
+
     res.status(201).json({
       success: true,
       user: {
-          id: user._id,
-          username: user.username,
-          email: user.email,
-          role: user.role // Assuming your User model has a default role 'hr'
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
       },
       token,
     });
   } catch (error) {
-    console.error("Error in createUser:", error);
+    console.error("❌ Error in createUser:", error);
     res.status(500).json({
       success: false,
-      error: error.message,
       message: "Internal server error during user registration.",
+      error: error.message,
     });
   }
 };
@@ -70,29 +63,33 @@ export const createUser = async (req, res) => {
  */
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
+
   try {
-    // Find the user by email
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing email or password.",
+      });
+    }
+
     const user = await UserModel.findOne({ email });
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "Not found: User does not exist",
+        message: "User not found.",
       });
     }
 
-    // Compare provided password with hashed password
-    const matchPassword = await bcrypt.compare(password, user.password);
-    if (!matchPassword) {
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password", // Use a generic message for security
+        message: "Invalid email or password.",
       });
     }
 
-    // Generate JWT token
     const token = generateToken({ userId: user._id });
 
-    // Send success response with user data and token
     res.status(200).json({
       success: true,
       user: {
@@ -104,11 +101,11 @@ export const loginUser = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error("Error in loginUser:", error);
+    console.error("❌ Error in loginUser:", error);
     res.status(500).json({
       success: false,
-      error: error.message,
       message: "Internal server error during login.",
+      error: error.message,
     });
   }
 };
