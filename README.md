@@ -258,23 +258,13 @@ Stores metadata about uploaded CVs, extracted candidate information, and analysi
 * **CORS Policy:** Configured to allow requests only from the specified `FRONTEND_URL`.
 * **File Upload Security:** Multer is configured with file type validation (PDF/DOC/DOCX only) and file size limits to prevent malicious uploads. Files are stored on the server file system.
 * **Data Validation:** Middleware for request body validation is planned to ensure data integrity and prevent common injection attacks.
-* **Error Handling:** Centralized error handling is implemented to catch and respond to API errors gracefully.
-* **Database Indexes:** To optimize query performance, relevant indexes will be added to frequently queried fields in MongoDB (e.g., `uploadedBy`, `status`).
+* **Error Handling:** Centralised error handling is implemented to catch and respond to API errors gracefully.
+* **Database Indexes:** To optimise query performance, relevant indexes will be added to frequently queried fields in MongoDB (e.g., `uploadedBy`, `status`).
 
 ## Contributing
 
-For contributions, please fork the repository and submit a pull request with your changes. Ensure your code adheres to the project's coding standards and includes relevant tests.
+For contributions, please don't hesitate to ask for the repository and submit a pull request with your changes. Please make sure your code follows the project's coding standards and includes relevant tests.
 
-## License
+## Author
 
-This project is licensed under the MIT License.
-
-## Contact
-
-For any inquiries, please contact **juto-shogan** at somtombonu53@gmail.com.
-
----
-
-Here's a concise and professional `README.md` specifically for your backend project, designed for developers to easily understand and set up. It focuses on the backend's responsibilities and technical details, without emojis.
-
----
+Mbonu Somto
