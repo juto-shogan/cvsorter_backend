@@ -1,26 +1,37 @@
 // src/middleware/upload.js
 
-import multer from 'multer';       // Use import for multer
-import path from 'path';         // Use import for path
-import fs from 'fs';             // Use import for fs
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // Ensure uploads directory exists
 const uploadsDir = 'uploads';
-// Using fs.existsSync and fs.mkdirSync for synchronous directory creation
-// as this typically runs once at server startup.
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log(`[Multer Setup] Created uploads directory: ${uploadsDir}`);
+} else {
+  console.log(`[Multer Setup] Uploads directory already exists: ${uploadsDir}`);
 }
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+    console.log(`[Multer Destination] Attempting to save file to: ${uploadsDir}`);
+    // Check if the directory is actually writable (optional, but good for deeper debug)
+    fs.access(uploadsDir, fs.constants.W_OK, (err) => {
+      if (err) {
+        console.error(`[Multer Destination Error] ${uploadsDir} is not writable:`, err);
+        cb(new Error(`Upload directory not writable: ${err.message}`));
+      } else {
+        cb(null, uploadsDir);
+      }
+    });
   },
   filename: (req, file, cb) => {
-    // Generate unique filename
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    const fileName = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+    console.log(`[Multer Filename] Generated filename: ${fileName} for original: ${file.originalname}`);
+    cb(null, fileName);
   }
 });
 
@@ -28,24 +39,24 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
     'application/pdf',
-    'application/msword', // .doc
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ];
 
+  console.log(`[Multer Filter] Checking file: ${file.originalname}, MIME type: ${file.mimetype}`);
   if (allowedTypes.includes(file.mimetype)) {
+    console.log(`[Multer Filter] File type ALLOWED: ${file.mimetype}`);
     cb(null, true);
   } else {
-    // You can provide a more descriptive error message to the user
+    console.warn(`[Multer Filter] File type DENIED: ${file.mimetype}`);
     cb(new Error('Invalid file type. Only PDF, DOC, and DOCX files are allowed.'), false);
   }
 };
 
-// Configure upload middleware
-// Export this directly as a named export
-export const upload = multer({ // Changed to 'export const'
+const upload = multer({
   storage: storage,
-  limits: {
-    fileSize: 1024 * 1024 * 5 // 5MB limit
-  },
-  fileFilter: fileFilter
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit (already in your frontend, good to have here too)
 });
+
+export { upload };

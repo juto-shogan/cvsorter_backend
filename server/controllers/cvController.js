@@ -74,13 +74,17 @@ class CVController {
   }
 
   async getCVs(req, res) {
+    console.log('[getCVs] Route handler entered.'); // ADD THIS LINE
     try {
+      // Assuming req.user is set by authentication middleware
       const userId = req.user._id;
-      const cvs = await CV.find({ uploadedBy: userId }).sort({ uploadedAt: -1 }); // Sort by newest first
-      res.json({ success: true, data: cvs });
+      console.log(`[getCVs] Fetching CVs for user ID: ${userId}`); // ADD THIS LINE
+
+      const cvs = await CV.find({ uploadedBy: userId }).sort({ uploadDate: -1 });
+      res.json(cvs);
     } catch (error) {
       console.error('Get CVs error:', error);
-      res.status(500).json({ message: 'Failed to retrieve CVs', error: error.message });
+      res.status(500).json({ message: 'Failed to fetch CVs', error: error.message });
     }
   }
 
