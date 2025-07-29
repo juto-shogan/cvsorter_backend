@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, Mail, Lock, User, FileText, AlertCircle } from 'lucide-react';
 
 interface SignupFormProps {
   onToggleMode: () => void;
-  // New prop to handle successful authentication (registration) and trigger redirection
-  onAuthSuccess: (token: string, user: any) => void;
 }
 
-const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode, onAuthSuccess }) => {
+const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
   const [formData, setFormData] = useState({
     username: '',
     name: '',
@@ -17,7 +16,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode, onAuthSuccess }) 
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { signup, isLoading } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -56,54 +55,22 @@ const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode, onAuthSuccess }) 
       return;
     }
 
-    setIsLoading(true);
-    try {
-      // Send registration request to backend API
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password
-        })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) { // Check for a successful HTTP status code (2xx)
-        // Registration successful, log user data and token
-        console.log('User registered:', data.user);
-        console.log('Token:', data.token);
-
-        // Call the onAuthSuccess prop to handle redirection and update parent state (AuthContext)
-        if (onAuthSuccess) {
-            onAuthSuccess(data.token, data.user);
-        }
-      } else {
-        // Handle server-side errors or validation messages
-        setError(data.message || 'Failed to create account. Please try again.');
-      }
-    } catch (error) {
-      // Handle network errors or unexpected issues
-      console.error('Registration error:', error);
-      setError('Failed to create account. Please check your connection and try again.');
-    } finally {
-      setIsLoading(false);
+    const success = await signup(formData.username, formData.email, formData.password, formData.name);
+    if (!success) {
+      setError('Failed to create account. Please try again.');
     }
   };
 
   return (
     <div className="w-full max-w-md">
       <div className="bg-slate-800/60 backdrop-blur-lg rounded-2xl p-8 border border-blue-800/30">
-        <div className="text-center mb-8"></div>
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl inline-block mb-4">
-          <FileText className="h-8 w-8 text-white" />
+        <div className="text-center mb-8">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl inline-block mb-4">
+            <FileText className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-2">Create Account</h2>
+          <p className="text-slate-400">Join OGTL to streamline your hiring</p>
         </div>
-        <h2 className="text-3xl font-bold text-white mb-2">Create Account</h2>
-        <p className="text-slate-400">Join OGTL to streamline your hiring</p>
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-6 flex items-center space-x-2">

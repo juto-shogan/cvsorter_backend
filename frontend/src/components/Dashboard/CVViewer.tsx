@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { CV } from '../../types';
-import { X, Download, User, MapPin, Mail, Phone, Award, GraduationCap, Calendar, FileText } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext'; // Import useAuth to get the token
+import { X, Download, User, MapPin, Mail, Phone, Award, GraduationCap, Calendar } from 'lucide-react';
 
 interface CVViewerProps {
   cv: CV;
@@ -9,184 +8,201 @@ interface CVViewerProps {
 }
 
 const CVViewer: React.FC<CVViewerProps> = ({ cv, onClose }) => {
-  const { token } = useAuth(); // Get the authentication token from AuthContext
-  const [isDownloading, setIsDownloading] = useState(false); // State for download loading
-
   const handleDownload = async () => {
-    if (!token) {
-      alert('You must be logged in to download CVs.');
-      return;
-    }
-
-    setIsDownloading(true); // Set loading state
     try {
-      const response = await fetch(`http://localhost:5000/api/cvs/${cv.id}/download`, { // Ensure correct URL
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`http://localhost:5000/api/cvs/${cv.id}/download`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-
+      
       if (!response.ok) {
-        // Try to read error message from backend if available
-        const errorText = await response.text();
-        let errorMessage = 'Failed to download CV. Please try again.';
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorMessage;
-        } catch (e) {
-          // If not JSON, use the plain text
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
+        throw new Error('Download failed');
       }
-
-      // Get the file name from the Content-Disposition header, or fallback to cv.fileName
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = cv.fileName || 'download.pdf'; // Default fallback
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1];
-        }
-      }
-
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename; // Use filename from header or fallback
+      a.download = cv.fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url); // Clean up the URL object
-      alert('CV downloaded successfully!');
+      window.URL.revokeObjectURL(url);
+      
     } catch (error) {
       console.error('Download failed:', error);
-      alert(`Download failed: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setIsDownloading(false); // Reset loading state
+      alert('Failed to download CV. Please try again.');
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
-      <div className="bg-slate-800/90 backdrop-blur-lg rounded-xl shadow-2xl border border-slate-700/50 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-800/90 backdrop-blur-lg rounded-2xl border border-slate-700/50 w-full max-w-4xl max-h-[90vh] overflow-hidden">
         <div className="flex justify-between items-center p-6 border-b border-slate-700/50">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <FileText className="h-7 w-7 text-blue-400" />
-            {cv.name}'s CV
-          </h2>
-          <div className="flex space-x-3">
-            {/* Download Button */}
+          <h2 className="text-2xl font-bold text-white">CV Details</h2>
+          <div className="flex items-center space-x-3">
             <button
               onClick={handleDownload}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isDownloading}
+              className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 p-2 rounded-lg transition-colors duration-200"
+              title="Download CV"
             >
-              {isDownloading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Downloading...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="h-5 w-5" />
-                  <span>Download CV</span>
-                </>
-              )}
+              <Download className="h-5 w-5" />
             </button>
-            {/* Close Button */}
             <button
               onClick={onClose}
-              className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 p-2 rounded-full transition-colors duration-200"
-              title="Close viewer"
+              className="text-slate-400 hover:text-white transition-colors duration-200 p-2 rounded-lg hover:bg-slate-700/50"
+              title="Close"
             >
-              <X className="h-6 w-6" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="p-6 overflow-y-auto flex-grow hide-scrollbar">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Main CV Details */}
-            <div className="md:col-span-2 space-y-6">
-              {/* Personal Info */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Candidate information */}
               <div className="bg-slate-700/30 rounded-xl p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Personal Information</h3>
-                <div className="space-y-3 text-sm text-slate-300">
-                  <p className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-blue-400" />
-                    <span>{cv.name}</span>
-                  </p>
-                  <p className="flex items-center space-x-2">
-                    <Mail className="h-4 w-4 text-blue-400" />
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl">
+                    <User className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{cv.candidateName}</h3>
+                    <p className="text-blue-400 font-medium">{cv.position}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center space-x-2 text-slate-300">
+                    <Mail className="h-4 w-4" />
                     <span>{cv.email}</span>
-                  </p>
-                  {cv.phone && (
-                    <p className="flex items-center space-x-2">
-                      <Phone className="h-4 w-4 text-blue-400" />
-                      <span>{cv.phone}</span>
-                    </p>
-                  )}
-                  {cv.location && (
-                    <p className="flex items-center space-x-2">
-                      <MapPin className="h-4 w-4 text-blue-400" />
-                      <span>{cv.location}</span>
-                    </p>
-                  )}
-                  <p className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-blue-400" />
-                    <span>Uploaded: {new Date(cv.uploadDate).toLocaleDateString()}</span>
-                  </p>
+                  </div>
+                  <div className="flex items-center space-x-2 text-slate-300">
+                    <Phone className="h-4 w-4" />
+                    <span>{cv.phone}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-slate-300">
+                    <MapPin className="h-4 w-4" />
+                    <span>{cv.location}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-slate-300">
+                    <Award className="h-4 w-4" />
+                    <span>{cv.experience} years experience</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Professional Details */}
+              {/* Education */}
               <div className="bg-slate-700/30 rounded-xl p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Professional Details</h3>
-                <div className="space-y-3 text-sm text-slate-300">
-                  <p className="flex items-center space-x-2">
-                    <Award className="h-4 w-4 text-blue-400" />
-                    <span>{cv.experience} years of experience</span>
-                  </p>
-                  {cv.position && (
-                    <p className="flex items-center space-x-2">
-                      <span className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded-md text-xs font-semibold">
-                        Position: {cv.position}
-                      </span>
-                    </p>
-                  )}
-                  <p className="flex items-center space-x-2">
-                    <GraduationCap className="h-4 w-4 text-blue-400" />
-                    <span>Education: {cv.education}</span>
-                  </p>
-                  {cv.score !== undefined && (
-                    <p className="flex items-center space-x-2">
-                      <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded-md text-xs font-semibold">
-                        Matching Score: {cv.score}%
-                      </span>
-                    </p>
-                  )}
-                </div>
+                <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                  <GraduationCap className="h-5 w-5" />
+                  <span>Education</span>
+                </h4>
+                <p className="text-slate-300">{cv.education}</p>
               </div>
 
               {/* Skills */}
               <div className="bg-slate-700/30 rounded-xl p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Skills</h3>
+                <h4 className="text-lg font-semibold text-white mb-4">Skills</h4>
                 <div className="flex flex-wrap gap-2">
                   {cv.skills.map((skill, index) => (
-                    <span key={index} className="bg-slate-600 text-white px-3 py-1 rounded-full text-sm">
+                    <span
+                      key={index}
+                      className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-lg text-sm font-medium border border-blue-500/30"
+                    >
                       {skill}
                     </span>
                   ))}
                 </div>
               </div>
+
+              {/* Professional summary */}
+              <div className="bg-slate-700/30 rounded-xl p-6">
+                <h4 className="text-lg font-semibold text-white mb-4">Professional Summary</h4>
+                <p className="text-slate-300 leading-relaxed">
+                  Experienced {cv.position.toLowerCase()} with {cv.experience} years of expertise in software development 
+                  and project management. Proven track record of delivering high-quality solutions and leading 
+                  cross-functional teams. Strong background in {cv.skills.slice(0, 3).join(', ')} and modern 
+                  development practices.
+                </p>
+              </div>
             </div>
 
-            {/* Sidebar (AI Insights, etc.) */}
-            <div className="md:col-span-1 space-y-6">
+            <div className="space-y-6">
+              {/* Assessment */}
+              <div className="bg-slate-700/30 rounded-xl p-6">
+                <h4 className="text-lg font-semibold text-white mb-4">Assessment</h4>
+                <div className="space-y-4">
+                  {cv.score && (
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-slate-300 text-sm">Overall Score</span>
+                        <span className="text-white font-semibold">{cv.score}%</span>
+                      </div>
+                      <div className="w-full bg-slate-600 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-600 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${cv.score}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 text-sm">Experience Match</span>
+                      <span className={`text-sm ${cv.experience >= 5 ? 'text-green-400' : cv.experience >= 3 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {cv.experience >= 5 ? 'High' : cv.experience >= 3 ? 'Medium' : 'Low'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 text-sm">Skills Match</span>
+                      <span className={`text-sm ${cv.skills.length >= 5 ? 'text-green-400' : cv.skills.length >= 3 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {cv.skills.length >= 5 ? 'High' : cv.skills.length >= 3 ? 'Good' : 'Basic'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 text-sm">Education</span>
+                      <span className={`text-sm ${['PhD', 'Master'].includes(cv.education) ? 'text-green-400' : 'text-blue-400'}`}>
+                        {['PhD', 'Master'].includes(cv.education) ? 'Advanced' : 'Standard'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* File information */}
+              <div className="bg-slate-700/30 rounded-xl p-6">
+                <h4 className="text-lg font-semibold text-white mb-4">File Information</h4>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">File Name</span>
+                    <span className="text-white truncate max-w-[150px]" title={cv.fileName}>{cv.fileName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">File Size</span>
+                    <span className="text-white">{(cv.fileSize / 1024 / 1024).toFixed(2)} MB</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Upload Date</span>
+                    <span className="text-white">{cv.uploadDate.toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Status</span>
+                    <span className={`font-medium ${
+                      cv.status === 'shortlisted' ? 'text-green-400' :
+                      cv.status === 'reviewed' ? 'text-blue-400' :
+                      cv.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
+                    }`}>
+                      {cv.status.charAt(0).toUpperCase() + cv.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* AI insights */}
               <div className="bg-slate-700/30 rounded-xl p-6">
                 <h4 className="text-lg font-semibold text-white mb-4">AI Insights</h4>

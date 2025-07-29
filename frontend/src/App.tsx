@@ -1,68 +1,92 @@
-// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { CVProvider } from './contexts/CVContext'; // Import CVProvider
-import Login from './pages/Login';
-import Register from './pages/Register';
+import { CVProvider } from './contexts/CVContext';
+import Navbar from './components/Layout/Navbar';
+import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
-import NotFound from './pages/NotFound'; // Assuming you have a NotFound component
-import './App.css'; // Global application styles
+import UploadPage from './pages/UploadPage';
+import EmailPage from './pages/EmailPage';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
-
-// A simple protected route component
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    // Optionally render a loading spinner or skeleton while checking auth status
-    return <div>Loading authentication...</div>;
-  }
-
-  if (!user) {
-    // Redirect to the login page if not authenticated
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
+// 🔥 PROTECTED ROUTE COMPONENT
+// This component checks if user is authenticated before allowing access
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  return user ? <>{children}</> : <Navigate to="/auth" />;
 };
 
-const App: React.FC = () => {
+// 🔥 MAIN APP CONTENT COMPONENT
+// This component handles routing and conditional navbar rendering
+const AppContent: React.FC = () => {
+  const { user } = useAuth();
+
   return (
     <Router>
-      {/* AuthProvider wraps the entire application or relevant parts */}
-      <AuthProvider>
-        {/* CVProvider should wrap components that need CV data, typically inside ProtectedRoute */}
-        <CVProvider>
-          <div className="App">
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              {/* Protect the dashboard route */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              {/* Redirect root to dashboard if logged in, otherwise to login */}
-              <Route
-                path="/"
-                element={<Navigate to="/dashboard" replace />}
-              />
-              {/* Catch-all for unknown routes */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-        </CVProvider>
-      </AuthProvider>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+        {/* CONDITIONAL NAVBAR - Only show when user is logged in */}
+        {user && <Navbar />}
+        
+        {/* ROUTE DEFINITIONS */}
+        <Routes>
+          {/* AUTH ROUTE - Redirect to dashboard if already logged in */}
+          <Route 
+            path="/auth" 
+            element={user ? <Navigate to="/dashboard" /> : <AuthPage />} 
+          />
+          
+          {/* DASHBOARD ROUTE - Protected, requires authentication */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* UPLOAD ROUTE - Protected, requires authentication */}
+          <Route 
+            path="/upload" 
+            element={
+              <ProtectedRoute>
+                <UploadPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* EMAIL ROUTE - Protected, requires authentication */}
+          <Route 
+            path="/email" 
+            element={
+              <ProtectedRoute>
+                <EmailPage />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* ROOT ROUTE - Redirect based on auth status */}
+          <Route 
+            path="/" 
+            element={<Navigate to={user ? "/dashboard" : "/auth"} />} 
+          />
+        </Routes>
+      </div>
     </Router>
   );
 };
+
+// 🔥 MAIN APP COMPONENT
+// This is the root component that provides all contexts
+function App() {
+  return (
+    // AUTH PROVIDER - Manages authentication state globally
+    <AuthProvider>
+      {/* CV PROVIDER - Manages CV data and filtering state globally */}
+      <CVProvider>
+        <AppContent />
+      </CVProvider>
+    </AuthProvider>
+  );
+}
 
 export default App;

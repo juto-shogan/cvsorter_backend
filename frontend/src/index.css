@@ -1,10 +1,6 @@
-/* src/index.css or src/App.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* You can keep your custom global CSS below these lines if needed */
-/* For example, the custom scrollbar and transition properties from your provided code */
 
 @layer base {
   body {

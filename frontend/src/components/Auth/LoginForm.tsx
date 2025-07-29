@@ -1,89 +1,42 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, Mail, Lock, FileText, AlertCircle } from 'lucide-react';
 
-// Props for toggling between login and signup modes
 interface LoginFormProps {
   onToggleMode: () => void;
-  // Add a prop for successful login, e.g., to redirect or update parent state
-  onLoginSuccess: (token: string, user: any) => void;
 }
 
-// LoginForm component handles user login UI and logic
-const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode, onLoginSuccess }) => {
-  // State for email input
+const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [email, setEmail] = useState('');
-  // State for password input
   const [password, setPassword] = useState('');
-  // State to toggle password visibility
   const [showPassword, setShowPassword] = useState(false);
-  // State for error messages
   const [error, setError] = useState('');
-  // State for loading indicator
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isLoading } = useAuth();
 
-  // Handles form submission and login logic
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Basic validation for empty fields
+    // Client-side validation
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
     }
 
-    // Basic email format validation
     if (!email.includes('@')) {
       setError('Please enter a valid email address');
       return;
     }
 
-    setIsLoading(true);
-    try {
-      // --- FETCH API USAGE STARTS HERE ---
-      // Sends login request to backend API
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      // Handles error response from API
-      if (!response.ok) { // Check if the response status is not in the 200-299 range
-        setError(data.message || 'Invalid credentials. Please check your email and password.');
-      } else {
-        // --- MODIFIED: Handle successful login ---
-        console.log('Login successful:', data);
-        // Assuming your backend sends 'token' and 'user' data upon successful login
-        localStorage.setItem('token', data.token); // Save the token
-        // You might want to save user details too
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        // Call the onLoginSuccess prop to handle redirection or state update in the parent component
-        if (onLoginSuccess) {
-            onLoginSuccess(data.token, data.user);
-        }
-        // Example: Redirecting to a dashboard or profile page.
-        // If you are using react-router-dom, you would use navigate('/dashboard');
-        // window.location.href = '/dashboard'; // Simple full page reload redirect
-      }
-      // --- FETCH API USAGE ENDS HERE ---
-    } catch (err) {
-      // Handles network errors
-      console.error('Login network error:', err); // Log the actual error for debugging
-      setError('Network error. Please try again.');
-    } finally {
-      setIsLoading(false);
+    const success = await login(email, password);
+    if (!success) {
+      setError('Invalid credentials. Please check your email and password.');
     }
   };
 
   return (
     <div className="w-full max-w-md">
-      {/* Card container */}
       <div className="bg-slate-800/60 backdrop-blur-lg rounded-2xl p-8 border border-blue-800/30">
-        {/* Header section */}
         <div className="text-center mb-8">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl inline-block mb-4">
             <FileText className="h-8 w-8 text-white" />
@@ -92,7 +45,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode, onLoginSuccess }) =
           <p className="text-slate-400">Sign in to continue to OGTL</p>
         </div>
 
-        {/* Error message display */}
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-6 flex items-center space-x-2">
             <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
@@ -100,9 +52,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode, onLoginSuccess }) =
           </div>
         )}
 
-        {/* Login form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email input field */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               Email Address
@@ -123,7 +73,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode, onLoginSuccess }) =
             </div>
           </div>
 
-          {/* Password input field */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               Password
@@ -141,7 +90,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode, onLoginSuccess }) =
                 required
                 disabled={isLoading}
               />
-              {/* Toggle password visibility button */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -153,7 +101,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode, onLoginSuccess }) =
             </div>
           </div>
 
-          {/* Submit button */}
           <button
             type="submit"
             disabled={isLoading}
@@ -170,7 +117,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode, onLoginSuccess }) =
           </button>
         </form>
 
-        {/* Link to switch to signup mode */}
         <div className="mt-6 text-center">
           <p className="text-slate-400">
             Don't have an account?{' '}

@@ -1,167 +1,111 @@
 import React from 'react';
-import { CV } from '../../types'; // Correctly imports CV interface from src/types/index.ts (or src/types.ts if renamed)
-import { User, MapPin, Calendar, Award, Mail, Phone, Eye, Trash2 } from 'lucide-react';
-import { useCV } from '../../contexts/CVContext'; // For updating/deleting from global state
-import { useAuth } from '../../contexts/AuthContext'; // Correctly imports useAuth from src/contexts/AuthContext.tsx
+import { CV } from '../../types';
+import { User, MapPin, Calendar, Award, Mail, Phone, Eye, Trash2, CheckCircle } from 'lucide-react';
+import { useCV } from '../../contexts/CVContext';
 
 interface CVCardProps {
   cv: CV;
-  onView: (cv: CV) => void; // Function to open the CVViewer for this CV
+  onView: (cv: CV) => void;
 }
 
 const CVCard: React.FC<CVCardProps> = ({ cv, onView }) => {
-  const { updateCV, deleteCV } = useCV(); // Functions from CVContext to manipulate local CV list
-  const { token } = useAuth(); // Get the authentication token for API calls
+  const { updateCV, deleteCV } = useCV();
 
-  // Helper function to determine status-specific styling
-  const getStatusColor = (status: CV['status']) => {
+  // Get status-specific styling
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
       case 'reviewed': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      case 'shortlisted': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'approved': return 'bg-green-500/20 text-green-400 border-green-500/30';
       case 'rejected': return 'bg-red-500/20 text-red-400 border-red-500/30';
       default: return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
     }
   };
 
-  // 1. Handle status change (PATCH /api/cvs/:id)
+  // Handle status change with optimistic updates
   const handleStatusChange = async (newStatus: CV['status']) => {
-    // If the status hasn't actually changed, do nothing
-    if (cv.status === newStatus) {
-      return;
-    }
-
-    if (!token) {
-        console.error("No authentication token available for status update. Please log in.");
-        alert("You need to be logged in to update CV status.");
-        return;
-    }
-
-    const previousStatus = cv.status; // Store current status for potential rollback
-
-    // Optimistic update: Update UI immediately for better user experience
-    updateCV({ ...cv, status: newStatus }); // This now correctly matches CVContext's updateCV signature
-
     try {
-      const response = await fetch(`http://localhost:5000/api/cvs/${cv.id}`, { // <-- Correct backend endpoint
-        method: 'PATCH', // Use PATCH for partial updates
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`, // Send the authentication token
-        },
-        body: JSON.stringify({ status: newStatus }), // Send only the new status
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update CV status');
-      }
-
-      // If successful, the optimistic update is confirmed. No need to update state again unless backend returns new data.
-      console.log(`CV ${cv.id} status updated to ${newStatus}`);
-      // Optionally, you could re-fetch the specific CV or update with response data if the backend modifies other fields
+      await updateCV(cv.id, { status: newStatus });
     } catch (error) {
-      console.error('Error updating CV status:', error);
-      // Rollback: Revert to previous status if the API call fails
-      updateCV({ ...cv, status: previousStatus });
-      alert(`Failed to update status: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('Failed to update CV status:', error);
+      // Could show a toast notification here
     }
   };
 
-  // 2. Handle CV deletion (DELETE /api/cvs/:id)
+  // Handle CV approval
+  const handleApprove = async () => {
+    if (cv.status !== 'approved') {
+      await handleStatusChange('approved');
+    }
+  };
+
+  // Handle CV deletion with confirmation
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this CV? This action cannot be undone.')) {
-      return; // User cancelled the deletion
-    }
-
-    if (!token) {
-        console.error("No authentication token available for delete operation. Please log in.");
-        alert("You need to be logged in to delete CVs.");
-        return;
-    }
-
-    try {
-      const response = await fetch(`http://localhost:5000/api/cvs/${cv.id}`, { // <-- Correct backend endpoint
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`, // Send the authentication token
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete CV');
+    if (window.confirm(`Are you sure you want to delete ${cv.candidateName}'s CV?`)) {
+      try {
+        await deleteCV(cv.id);
+      } catch (error) {
+        console.error('Failed to delete CV:', error);
+        alert('Failed to delete CV. Please try again.');
       }
-
-      console.log(`CV ${cv.id} deleted successfully.`);
-      deleteCV(cv.id); // Remove the CV from the global state via CVContext
-    } catch (error) {
-      console.error('Error deleting CV:', error);
-      alert(`Failed to delete CV: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
-
 
   return (
-    <div className="bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 flex flex-col justify-between h-full">
-      {/* CV Header */}
-      <div className="flex items-center space-x-4 mb-4">
-        <div className="bg-blue-500/20 p-3 rounded-full">
-          <User className="h-6 w-6 text-blue-400" />
+    <div className="bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 hover:border-blue-500/30 transition-all duration-200 group">
+      {/* Candidate header */}
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-white mb-1">{cv.candidateName}</h3>
+          <p className="text-blue-400 font-medium">{cv.position}</p>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-white">{cv.name}</h2>
-          <p className="text-slate-400 text-sm flex items-center">
-            {cv.position && <span className="mr-2">{cv.position}</span>}
-            {cv.location && (
-              <>
-                <MapPin className="h-3 w-3 mr-1" /> {cv.location}
-              </>
-            )}
-          </p>
+        <div className="flex items-center space-x-2">
+          {/* AI matching score */}
+          {cv.score && (
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+              {cv.score}%
+            </div>
+          )}
+          {/* Status badge */}
+          <div className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(cv.status)}`}>
+            {cv.status}
+          </div>
         </div>
       </div>
 
-      {/* CV Details */}
-      <div className="space-y-3 text-sm text-slate-300 flex-grow">
-        <p className="flex items-center space-x-2">
-          <Mail className="h-4 w-4 text-blue-400" />
-          <span>{cv.email}</span>
-        </p>
-        {cv.phone && (
-          <p className="flex items-center space-x-2">
-            <Phone className="h-4 w-4 text-blue-400" />
-            <span>{cv.phone}</span>
-          </p>
-        )}
-        <p className="flex items-center space-x-2">
-          <Award className="h-4 w-4 text-blue-400" />
-          <span>{cv.experience} years of experience</span>
-        </p>
-        <p className="flex items-center space-x-2">
-          <Calendar className="h-4 w-4 text-blue-400" />
-          <span>Uploaded: {new Date(cv.uploadDate).toLocaleDateString()}</span>
-        </p>
-        {cv.score !== undefined && (
-          <p className="flex items-center space-x-2">
-            <span className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded-md text-xs font-semibold">
-              Score: {cv.score}%
-            </span>
-          </p>
-        )}
+      {/* Candidate details grid */}
+      <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+        <div className="flex items-center space-x-2 text-slate-300">
+          <Award className="h-4 w-4" />
+          <span>{cv.experience} years exp.</span>
+        </div>
+        <div className="flex items-center space-x-2 text-slate-300">
+          <MapPin className="h-4 w-4" />
+          <span>{cv.location}</span>
+        </div>
+        <div className="flex items-center space-x-2 text-slate-300">
+          <Mail className="h-4 w-4" />
+          <span className="truncate">{cv.email}</span>
+        </div>
+        <div className="flex items-center space-x-2 text-slate-300">
+          <Calendar className="h-4 w-4" />
+          <span>{cv.uploadDate.toLocaleDateString()}</span>
+        </div>
       </div>
 
-      {/* Skills display */}
-      <div className="mt-4 mb-6">
-        <h4 className="text-sm font-semibold text-slate-300 mb-2">Skills:</h4>
+      {/* Skills section */}
+      <div className="mb-4">
+        <p className="text-slate-400 text-sm mb-2">Skills:</p>
         <div className="flex flex-wrap gap-2">
           {cv.skills.slice(0, 4).map((skill, index) => (
-            <span key={index} className="bg-slate-700/50 text-slate-300 px-3 py-1 rounded-full text-xs">
+            <span
+              key={index}
+              className="bg-slate-700/50 text-slate-300 px-2 py-1 rounded-md text-xs"
+            >
               {skill}
             </span>
           ))}
           {cv.skills.length > 4 && (
-            <span className="bg-slate-700/50 text-slate-300 px-3 py-1 rounded-full text-xs">
+            <span className="bg-slate-700/50 text-slate-400 px-2 py-1 rounded-md text-xs">
               +{cv.skills.length - 4} more
             </span>
           )}
@@ -169,18 +113,31 @@ const CVCard: React.FC<CVCardProps> = ({ cv, onView }) => {
       </div>
 
       {/* Action buttons */}
-      <div className="flex justify-between items-center mt-auto pt-4 border-t border-slate-700/50">
-        {/* Status dropdown */}
-        <select
-          value={cv.status}
-          onChange={(e) => handleStatusChange(e.target.value as CV['status'])}
-          className={`bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${getStatusColor(cv.status)}`}
-        >
-          <option value="pending" className="bg-slate-800 text-yellow-400">Pending</option>
-          <option value="reviewed" className="bg-slate-800 text-blue-400">Reviewed</option>
-          <option value="shortlisted" className="bg-slate-800 text-green-400">Shortlisted</option>
-          <option value="rejected" className="bg-slate-800 text-red-400">Rejected</option>
-        </select>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          {/* Approve button */}
+          {cv.status !== 'approved' && (
+            <button
+              onClick={handleApprove}
+              className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-2 rounded-lg transition-colors duration-200 text-sm font-medium flex items-center space-x-1"
+              title="Approve CV"
+            >
+              <CheckCircle className="h-4 w-4" />
+              <span>Approve</span>
+            </button>
+          )}
+          
+          {/* Status dropdown */}
+          <select
+            value={cv.status}
+            onChange={(e) => handleStatusChange(e.target.value as CV['status'])}
+            className="bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="reviewed">Reviewed</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
         
         {/* View and delete buttons */}
         <div className="flex space-x-2">

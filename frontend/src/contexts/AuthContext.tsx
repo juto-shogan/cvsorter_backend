@@ -1,158 +1,17 @@
-// src/contexts/AuthContext.tsx
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User } from '../types';
 
-// Define the shape of your user object
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-  // Add other user properties as needed
-}
-
-// Define the shape of your AuthContext values
 interface AuthContextType {
   user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  error: string | null;
-  API_BASE_URL: string; // <--- ADDED THIS LINE
   login: (email: string, password: string) => Promise<boolean>;
+  signup: (username: string, email: string, password: string, name: string) => Promise<boolean>;
   logout: () => void;
-  register: (username: string, email: string, password: string) => Promise<boolean>;
+  isLoading: boolean;
+  updateProfile: (updates: Partial<User>) => Promise<boolean>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
 }
 
-// Create the AuthContext
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Define your API base URL here. Use environment variables in a real app.
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'; // Make sure this matches your backend
-
-  // Function to save user and token to local storage
-  const saveAuthData = useCallback((userData: User, userToken: string) => {
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', userToken);
-    setUser(userData);
-    setToken(userToken);
-  }, []);
-
-  // Function to clear user and token from local storage
-  const clearAuthData = useCallback(() => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setUser(null);
-    setToken(null);
-  }, []);
-
-  // Load user from local storage on initial mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
-    if (storedUser && storedToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
-      } catch (e) {
-        console.error("Failed to parse stored user data:", e);
-        clearAuthData(); // Clear invalid data
-      }
-    }
-  }, [clearAuthData]);
-
-
-  const login = useCallback(async (email: any, password: any) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        saveAuthData(data.user, data.token);
-        return true;
-      } else {
-        setError(data.message || 'Login failed');
-        return false;
-      }
-    } catch (err: any) {
-      setError('Network error or server unavailable.');
-      console.error('Login error:', err);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [API_BASE_URL, saveAuthData]);
-
-  const register = useCallback(async (username: any, email: any, password: any) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        saveAuthData(data.user, data.token);
-        return true;
-      } else {
-        setError(data.message || 'Registration failed');
-        return false;
-      }
-    } catch (err: any) {
-      setError('Network error or server unavailable.');
-      console.error('Registration error:', err);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [API_BASE_URL, saveAuthData]);
-
-  const logout = useCallback(() => {
-    clearAuthData();
-  }, [clearAuthData]);
-
-
-  const contextValue = useMemo(() => ({
-    user,
-    token,
-    isLoading,
-    error,
-    API_BASE_URL, // <--- ADDED THIS TO THE CONTEXT VALUE
-    login,
-    logout,
-    register,
-  }), [user, token, isLoading, error, API_BASE_URL, login, logout, register]);
-
-
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -160,4 +19,237 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Login function with backend integration
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      // Check if response is ok and has content
+      if (!response.ok) {
+        let errorMessage = 'Login failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Safely parse JSON response
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error('Invalid response from server');
+      }
+
+      localStorage.setItem('authToken', data.token);
+      setUser({
+        id: data.user.id,
+        username: data.user.username,
+        email: data.user.email,
+        name: data.user.name,
+        company: data.user.company || 'OGTL'
+      });
+      return true;
+    } catch (error) {
+      // Handle network errors (backend not running)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('Backend server is not running. Please start your Express.js server.');
+      }
+      console.error('Login failed:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Signup function with backend integration
+  const signup = async (username: string, email: string, password: string, name: string): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, email, password, name }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Signup failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error('Invalid response from server');
+      }
+
+      localStorage.setItem('authToken', data.token);
+      setUser({
+        id: data.user.id,
+        username: data.user.username,
+        email: data.user.email,
+        name: data.user.name,
+        company: data.user.company || 'OGTL'
+      });
+      return true;
+    } catch (error) {
+      // Handle network errors (backend not running)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('Backend server is not running. Please start your Express.js server.');
+      }
+      console.error('Signup failed:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Logout function with backend integration
+  const logout = () => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      // Optional: Call backend to invalidate token
+      fetch('http://localhost:5000/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }).catch(console.error);
+    }
+    
+    localStorage.removeItem('authToken');
+    setUser(null);
+  };
+
+  // Update user profile
+  const updateProfile = async (updates: Partial<User>): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('http://localhost:5000/api/auth/profile', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      const data = await response.json();
+      setUser(prev => prev ? { ...prev, ...data.user } : null);
+      return true;
+    } catch (error) {
+      console.error('Profile update failed:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Change password
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to change password');
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Password change failed:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Token persistence - check for existing token on app load
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      fetch('http://localhost:5000/api/auth/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.user) {
+          setUser({
+            id: data.user.id,
+            username: data.user.username,
+            email: data.user.email,
+            name: data.user.name,
+            company: data.user.company || 'OGTL'
+          });
+        } else {
+          localStorage.removeItem('authToken');
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('authToken');
+      });
+    }
+  }, []);
+
+  const value = {
+    user,
+    login,
+    signup,
+    logout,
+    isLoading,
+    updateProfile,
+    changePassword
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

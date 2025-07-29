@@ -1,164 +1,137 @@
-// src/components/FileUploader.tsx
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-// Add RefreshCcw for the clear button icon
-import { Upload, FileText, X, CheckCircle, AlertCircle, RefreshCcw } from 'lucide-react';
+import { Upload, FileText, X, FolderOpen, CheckCircle } from 'lucide-react';
 import { useCV } from '../../contexts/CVContext';
 import { CV } from '../../types';
 
-// Helper function to format file size for display
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
 const FileUploader: React.FC = () => {
-  // State to hold files selected by the user
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  // State to indicate if any file is currently being processed
-  const [isProcessing, setIsProcessing] = useState(false);
-  // State to track the status of each individual file by name
-  const [processingStatus, setProcessingStatus] = useState<{[key: string]: 'processing' | 'success' | 'error'}>({});
-  // State for general error messages related to upload
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<{[key: string]: 'success' | 'error'}>({});
   const [error, setError] = useState<string>('');
-  // Access addCV function from CVContext to update global CV state
   const { addCV } = useCV();
+  const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
 
   // Handle file drop/selection with validation
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    // Clear previous general error
-    setError('');
-
-    // Filter files based on type and size
     const validFiles = acceptedFiles.filter(file => {
-      const isValidType = file.type === 'application/pdf' ||
-        file.type === 'application/msword' ||
+      const isValidType = file.type === 'application/pdf' || 
+        file.type === 'application/msword' || 
         file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB limit
-
-      if (!isValidType) {
-        setError(prev => prev + `File "${file.name}" has an unsupported type. Only PDF, DOC, and DOCX are allowed. `);
-        return false;
-      }
-      if (!isValidSize) {
-        setError(prev => prev + `File "${file.name}" is too large. Max size is 10MB. `);
-        return false;
-      }
-      return true;
+      return isValidType && isValidSize;
     });
-
-    // Filter out duplicates based on name and size before adding
-    setUploadedFiles(prev => {
-      const existingFiles = prev.map(f => `${f.name}-${f.size}`);
-      const newFiles = validFiles.filter(file => {
-        const fileKey = `${file.name}-${file.size}`;
-        return !existingFiles.includes(fileKey);
-      });
-      return [...prev, ...newFiles];
-    });
+    
+    if (validFiles.length !== acceptedFiles.length) {
+      setError('Some files were rejected. Only PDF, DOC, DOCX files under 10MB are allowed.');
+    } else {
+      setError('');
+    }
+    
+    setUploadedFiles(prev => [...prev, ...validFiles]);
   }, []);
 
-  // Configure react-dropzone hook
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
+  // React Dropzone configuration
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+    onDrop,
+    noClick: true,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+    },
+    multiple: true,
+    maxSize: 10 * 1024 * 1024 // 10MB
+  });
 
-  // Function to remove a file from the list
+  // Manual file picker
+  const handleManualUpload = () => {
+    open();
+  };
+
+  // Remove file from upload queue
   const removeFile = (index: number) => {
-    setUploadedFiles(prev => {
-      const newFiles = [...prev];
-      const removedFileName = newFiles[index]?.name;
-      newFiles.splice(index, 1);
-      // Also remove its processing status
-      setProcessingStatus(prevStatus => {
-        const newStatus = { ...prevStatus };
-        if (removedFileName) {
-          delete newStatus[removedFileName];
-        }
-        return newStatus;
-      });
-      return newFiles;
-    });
-    setError(''); // Clear error if files are removed
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setError('');
   };
 
-  // Function to clear all files from the list and their statuses
-  const clearAllFiles = () => {
-      setUploadedFiles([]);
-      setProcessingStatus({});
-      setError('');
-  };
-
-  // Function to upload files to the backend
+  // Process files with backend integration
   const uploadFiles = async () => {
-    if (uploadedFiles.length === 0) {
-      setError('Please select files to upload.');
-      return;
-    }
-
-    setIsProcessing(true); // Start global processing indicator
-    setError(''); // Clear previous general errors
-
-    const filesToKeepAfterUpload: File[] = []; // Files that failed will be kept in the list
-
-    for (const file of uploadedFiles) {
-      // Set individual file status to 'processing'
-      setProcessingStatus(prev => ({ ...prev, [file.name]: 'processing' }));
-
-      const formData = new FormData();
-      formData.append('cv', file); // 'cv' should match the field name Multer expects
-
-      try {
-        const token = localStorage.getItem('authToken'); // Get auth token from local storage
-        if (!token) {
-          throw new Error('No authentication token found. Please log in.');
-        }
-
+    if (uploadedFiles.length === 0) return;
+    
+    setIsUploading(true);
+    setError('');
+    
+    try {
+      for (const file of uploadedFiles) {
+        const formData = new FormData();
+        formData.append('cv', file);
+        
+        const token = localStorage.getItem('authToken');
+        
+        // Simulate upload progress
+        setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+        
         const response = await fetch('http://localhost:5000/api/cvs/upload', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            // 'Content-Type': 'multipart/form-data' is NOT set here; browser sets it with boundary
           },
           body: formData,
         });
-
+        
+        setUploadProgress(prev => ({ ...prev, [file.name]: 80 }));
+        
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.message || 'File upload failed.');
+          throw new Error(errorData.message || `Failed to process ${file.name}`);
         }
-
-        const uploadedCV: CV = await response.json();
-        // Set individual file status to 'success'
-        setProcessingStatus(prev => ({ ...prev, [file.name]: 'success' }));
-        addCV(uploadedCV); // Add the new CV to the global context state
-
-        // This file was successful, so we DON'T add it to filesToKeepAfterUpload
-      } catch (uploadError: any) {
-        console.error(`Error uploading ${file.name}:`, uploadError);
-        // Set individual file status to 'error'
-        setProcessingStatus(prev => ({ ...prev, [file.name]: 'error' }));
-        setError(`Failed to upload ${file.name}: ${uploadError.message}`);
-        filesToKeepAfterUpload.push(file); // This file failed, so we keep it in the list
+        
+        const processedCV = await response.json();
+        
+        // Add the processed CV to context (backend returns complete CV object)
+        addCV(processedCV.cv);
+        setUploadStatus(prev => ({ ...prev, [file.name]: 'success' }));
+        setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
       }
+      
+      // Clear uploaded files after successful processing
+      setTimeout(() => {
+        setUploadedFiles([]);
+        setUploadStatus({});
+        setUploadProgress({});
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error processing files:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process files');
+      
+      // Mark failed files
+      uploadedFiles.forEach(file => {
+        setUploadStatus(prev => ({ ...prev, [file.name]: 'error' }));
+      });
+    } finally {
+      setIsUploading(false);
     }
-    // After iterating through all files, update the uploadedFiles state
-    // to only include those that failed.
-    setUploadedFiles(filesToKeepAfterUpload);
-    setIsProcessing(false); // End global processing indicator
   };
 
-  // Get appropriate icon based on file processing status
+  // Format file sizes
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Get status icon for file
   const getStatusIcon = (fileName: string) => {
-    const status = processingStatus[fileName];
+    const status = uploadStatus[fileName];
     switch (status) {
-      case 'processing':
-        return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 text-blue-500"></div>;
       case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-400" />;
       case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <X className="h-4 w-4 text-red-400" />;
       default:
         return null;
     }
@@ -166,26 +139,80 @@ const FileUploader: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* File Dropzone Area */}
-      <div
-        {...getRootProps()}
-        className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors duration-200
-          ${isDragActive ? 'border-blue-500 bg-blue-900/10' : 'border-slate-700/50 bg-slate-800/60 hover:border-blue-600/50'}
-          flex flex-col items-center justify-center cursor-pointer`}
-      >
-        <input {...getInputProps()} />
-        <Upload className="h-12 w-12 text-blue-400 mb-4" />
-        <p className="text-lg font-medium text-white mb-2">Drag & drop CVs here, or click to browse</p>
-        <p className="text-sm text-slate-400">Supported files: PDF, DOC, DOCX (Max 10MB)</p>
+      {/* Header with upload button */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-white">Upload CV Files</h2>
+        <button
+          onClick={handleManualUpload}
+          disabled={isUploading}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <FolderOpen className="h-5 w-5" />
+          <span>Browse Files</span>
+        </button>
       </div>
 
-      {/* Display selected/uploaded files */}
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Drag & Drop area */}
+      <div
+        {...getRootProps()}
+        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 cursor-pointer ${
+          isDragActive 
+            ? 'border-blue-500 bg-blue-500/10' 
+            : 'border-slate-600/50 bg-slate-800/30'
+        }`}
+      >
+        <input {...getInputProps()} />
+        <div className="flex flex-col items-center space-y-4">
+          <div className={`p-4 rounded-full transition-colors duration-300 ${
+            isDragActive ? 'bg-blue-500/20' : 'bg-slate-700/50'
+          }`}>
+            <Upload className={`h-8 w-8 transition-colors duration-300 ${
+              isDragActive ? 'text-blue-400' : 'text-slate-400'
+            }`} />
+          </div>
+          <div>
+            <p className="text-lg font-medium text-white mb-2">
+              {isDragActive ? 'Drop the files here' : 'Drag & drop CV files here'}
+            </p>
+            <p className="text-slate-400 text-sm">
+              or use the <span className="text-blue-400 font-medium">"Browse Files"</span> button above
+            </p>
+            <p className="text-slate-500 text-xs mt-2">
+              Supports PDF, DOC, DOCX files up to 10MB each
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Uploaded files preview */}
       {uploadedFiles.length > 0 && (
-        <div className="bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50 space-y-4">
-          <h3 className="text-lg font-semibold text-white">Files to Upload ({uploadedFiles.length})</h3>
-          <div className="max-h-60 overflow-y-auto pr-2 scrollbar-thumb-slate-600 scrollbar-track-slate-800 scrollbar-thin">
+        <div className="bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-white">
+              Uploaded Files ({uploadedFiles.length})
+            </h3>
+            <button
+              onClick={uploadFiles}
+              disabled={isUploading}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUploading ? 'Uploading...' : 'Upload CVs'}
+            </button>
+          </div>
+          
+          <div className="space-y-3">
             {uploadedFiles.map((file, index) => (
-              <div key={file.name + file.size + index} className="flex items-center justify-between py-2 border-b border-slate-700 last:border-b-0">
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg border border-slate-600/50"
+              >
                 <div className="flex items-center space-x-3">
                   <div className="bg-blue-500/20 p-2 rounded-lg">
                     <FileText className="h-5 w-5 text-blue-400" />
@@ -195,14 +222,13 @@ const FileUploader: React.FC = () => {
                     <p className="text-slate-400 text-sm">{formatFileSize(file.size)}</p>
                   </div>
                 </div>
-
+                
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(file.name)}
-                  {!isProcessing && ( // Only show remove button if not globally processing
+                  {!isUploading && (
                     <button
                       onClick={() => removeFile(index)}
                       className="text-slate-400 hover:text-red-400 transition-colors duration-200 p-1 rounded-full hover:bg-red-500/10"
-                      title="Remove file"
                     >
                       <X className="h-5 w-5" />
                     </button>
@@ -211,40 +237,16 @@ const FileUploader: React.FC = () => {
               </div>
             ))}
           </div>
-          {/* Upload and Clear Buttons */}
-          <div className="flex space-x-4 mt-4">
-            <button
-              onClick={uploadFiles}
-              disabled={uploadedFiles.length === 0 || isProcessing}
-              className="flex-grow bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {isProcessing ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Processing CVs...
-                </>
-              ) : (
-                'Upload Selected CVs'
-              )}
-            </button>
-            <button
-                onClick={clearAllFiles}
-                disabled={isProcessing || uploadedFiles.length === 0} // Disable if processing or no files to clear
-                className="flex-shrink-0 bg-slate-700/50 hover:bg-slate-700 text-slate-300 py-3 px-4 rounded-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-                title="Clear all files from the list"
-            >
-                <RefreshCcw className="h-4 w-4" />
-                <span>Clear List</span>
-            </button>
-          </div>
         </div>
       )}
 
-      {/* Display general error messages */}
-      {error && (
-        <div className="bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl p-4 flex items-center space-x-3">
-          <AlertCircle className="h-5 w-5 flex-shrink-0" />
-          <p className="text-sm font-medium">{error}</p>
+      {/* Upload indicator */}
+      {isUploading && (
+        <div className="bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+            <p className="text-white">Uploading CVs...</p>
+          </div>
         </div>
       )}
     </div>
