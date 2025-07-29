@@ -1,0 +1,165 @@
+/* src/components/Dashboard/CVList.css */
+
+.cv-list-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Responsive grid */
+  gap: 20px; /* Space between cards */
+  padding: 10px;
+}
+
+.cv-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  text-align: left;
+  position: relative;
+  overflow: hidden; /* For potential overflow from status badge */
+}
+
+.cv-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.12);
+}
+
+.cv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; /* Align status badge to top-right */
+  margin-bottom: 15px;
+  position: relative; /* For positioning status */
+}
+
+.cv-header h3 {
+  margin: 0;
+  color: #007bff; /* Blue for candidate name */
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cv-status {
+  position: absolute;
+  top: -10px; /* Pull it slightly out of the card */
+  right: -10px; /* Pull it slightly out of the card */
+  padding: 5px 12px;
+  border-bottom-left-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: -2px 2px 5px rgba(0,0,0,0.1);
+}
+
+.status-pending {
+  background-color: #ffc107; /* Yellow */
+}
+
+.status-shortlisted {
+  background-color: #28a745; /* Green */
+}
+
+.status-rejected {
+  background-color: #dc3545; /* Red */
+}
+
+.cv-details p {
+  margin: 8px 0;
+  font-size: 15px;
+  color: #555;
+}
+
+.cv-details p strong {
+  color: #333;
+  margin-right: 5px;
+}
+
+.cv-skills {
+  margin-top: 15px;
+  line-height: 1.6;
+}
+
+.cv-upload-info {
+  font-size: 13px;
+  color: #888;
+  margin-top: auto; /* Push to the bottom */
+  padding-top: 15px;
+  border-top: 1px dashed #eee;
+}
+
+.cv-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  justify-content: flex-end; /* Align buttons to the right */
+}
+
+.cv-actions button, .cv-actions select {
+  padding: 8px 15px;
+  border-radius: 5px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.cv-actions .view-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+}
+
+.cv-actions .view-button:hover {
+  background-color: #0056b3;
+}
+
+.cv-actions .edit-button {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+}
+
+.cv-actions .edit-button:hover {
+  background-color: #5a6268;
+}
+
+.cv-actions .delete-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+}
+
+.cv-actions .delete-button:hover {
+  background-color: #c82333;
+}
+
+.cv-actions select {
+  background-color: #f8f9fa;
+  border: 1px solid #ced4da;
+  color: #495057;
+}
+
+.cv-actions select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Message when no CVs are present */
+.no-cvs-message {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .cv-list-container {
+    grid-template-columns: 1fr; /* Stack cards on very small screens */
+  }
+}

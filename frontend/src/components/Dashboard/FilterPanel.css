@@ -1,0 +1,97 @@
+/* src/components/Dashboard/FilterPanel.css */
+
+.filter-panel {
+  padding: 15px;
+  /* background-color: #ffffff; Already handled by dashboard-sidebar */
+  /* border-radius: 8px; Already handled by dashboard-sidebar */
+  /* box-shadow: 0 2px 8px rgba(0,0,0,0.1); Already handled by dashboard-sidebar */
+}
+
+.filter-panel h3 {
+  color: #007bff; /* Blue heading */
+  margin-top: 0;
+  margin-bottom: 25px;
+  font-size: 22px;
+  text-align: center;
+}
+
+.filter-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.filter-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #495057;
+}
+
+.filter-panel select,
+.filter-panel input[type="text"],
+.filter-panel input[type="number"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  font-size: 15px;
+  box-sizing: border-box; /* Ensures padding doesn't increase width */
+}
+
+.filter-panel select[multiple] {
+  min-height: 100px; /* Keep multiple select visible */
+}
+
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range-inputs input {
+  flex: 1; /* Allow inputs to take equal space */
+}
+
+.range-inputs span {
+  font-weight: bold;
+  color: #6c757d;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 30px;
+  justify-content: center;
+}
+
+.filter-actions button {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.filter-actions button:first-child {
+  background-color: #007bff; /* Primary blue for Apply */
+  color: white;
+}
+
+.filter-actions button:first-child:hover {
+  background-color: #0056b3;
+}
+
+.filter-actions button:last-child {
+  background-color: #6c757d; /* Grey for Reset */
+  color: white;
+}
+
+.filter-actions button:last-child:hover {
+  background-color: #5a6268;
+}
+
+/* Styling for the Sort By section */
+.filter-group #sort-by {
+  margin-top: 20px; /* Space from other filters */
+}
