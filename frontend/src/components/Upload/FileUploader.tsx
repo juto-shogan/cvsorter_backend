@@ -1,217 +1,199 @@
+// src/components/Upload/FileUploader.tsx
+
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, X, FolderOpen, CheckCircle } from 'lucide-react';
+import { Upload, FileText, X, FolderOpen, CheckCircle, XCircle } from 'lucide-react';
 import { useCV } from '../../contexts/CVContext';
 import { CV } from '../../types';
+import api from '../../services/api'; // Import the new API service
 
 const FileUploader: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<{[key: string]: 'success' | 'error'}>({});
+  const [uploadStatus, setUploadStatus] = useState<{[key: string]: 'pending' | 'success' | 'error'}>({});
   const [error, setError] = useState<string>('');
-  const { addCV } = useCV();
+  const { addCV, refreshStats } = useCV(); // Use refreshStats from CVContext
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
 
-  // Handle file drop/selection with validation
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const validFiles = acceptedFiles.filter(file => {
-      const isValidType = file.type === 'application/pdf' || 
-        file.type === 'application/msword' || 
-        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB limit
-      return isValidType && isValidSize;
-    });
-    
-    if (validFiles.length !== acceptedFiles.length) {
-      setError('Some files were rejected. Only PDF, DOC, DOCX files under 10MB are allowed.');
-    } else {
-      setError('');
-    }
-    
-    setUploadedFiles(prev => [...prev, ...validFiles]);
-  }, []);
-
-  // React Dropzone configuration
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    onDrop,
-    noClick: true,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
-    },
-    multiple: true,
-    maxSize: 10 * 1024 * 1024 // 10MB
-  });
-
-  // Manual file picker
-  const handleManualUpload = () => {
-    open();
-  };
-
-  // Remove file from upload queue
-  const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-    setError('');
-  };
-
-  // Process files with backend integration
-  const uploadFiles = async () => {
-    if (uploadedFiles.length === 0) return;
-    
-    setIsUploading(true);
-    setError('');
-    
-    try {
-      for (const file of uploadedFiles) {
-        const formData = new FormData();
-        formData.append('cv', file);
-        
-        const token = localStorage.getItem('authToken');
-        
-        // Simulate upload progress
-        setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
-        
-        const response = await fetch('http://localhost:5000/api/cvs/upload', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-          body: formData,
-        });
-        
-        setUploadProgress(prev => ({ ...prev, [file.name]: 80 }));
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || `Failed to process ${file.name}`);
-        }
-        
-        const processedCV = await response.json();
-        
-        // Add the processed CV to context (backend returns complete CV object)
-        addCV(processedCV.cv);
-        setUploadStatus(prev => ({ ...prev, [file.name]: 'success' }));
-        setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-      }
-      
-      // Clear uploaded files after successful processing
-      setTimeout(() => {
-        setUploadedFiles([]);
-        setUploadStatus({});
-        setUploadProgress({});
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Error processing files:', error);
-      setError(error instanceof Error ? error.message : 'Failed to process files');
-      
-      // Mark failed files
-      uploadedFiles.forEach(file => {
-        setUploadStatus(prev => ({ ...prev, [file.name]: 'error' }));
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Format file sizes
+  // Helper to format file size
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Get status icon for file
+  // Handle file drop/selection with validation
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    setError(''); // Clear previous errors
+    const newFiles = acceptedFiles.map(file => {
+      const isValidType = file.type === 'application/pdf' || 
+        file.type === 'application/msword' || 
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB limit
+
+      if (!isValidType) {
+        setError(prev => prev + `\n- ${file.name}: Invalid file type. Only PDF, DOC, DOCX allowed.`);
+        return null;
+      }
+      if (!isValidSize) {
+        setError(prev => prev + `\n- ${file.name}: File size exceeds 10MB limit.`);
+        return null;
+      }
+      return file;
+    }).filter(Boolean) as File[]; // Filter out nulls
+
+    if (newFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+      newFiles.forEach(file => setUploadStatus(prev => ({ ...prev, [file.name]: 'pending' })));
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
+
+  // Remove a file from the list
+  const removeFile = (indexToRemove: number) => {
+    setUploadedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
+    // Also remove its status and progress
+    const fileToRemove = uploadedFiles[indexToRemove];
+    if (fileToRemove) {
+      setUploadStatus(prev => {
+        const newState = { ...prev };
+        delete newState[fileToRemove.name];
+        return newState;
+      });
+      setUploadProgress(prev => {
+        const newState = { ...prev };
+        delete newState[fileToRemove.name];
+        return newState;
+      });
+    }
+  };
+
+  // Handle the actual upload process
+  const handleUpload = async () => {
+    if (uploadedFiles.length === 0) {
+      setError('Please select files to upload.');
+      return;
+    }
+
+    setIsUploading(true);
+    setError(''); // Clear errors before new upload
+
+    const uploadPromises = uploadedFiles.map(async (file) => {
+      const formData = new FormData();
+      formData.append('cvFile', file); // 'cvFile' should match the backend's expected field name
+
+      try {
+        setUploadStatus(prev => ({ ...prev, [file.name]: 'pending' }));
+        setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+
+        // Use the api.post method for file upload
+        // The api service automatically handles token and base URL
+        const uploadedCV = await api.post<CV>('upload-cv', formData, {
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploadProgress(prev => ({ ...prev, [file.name]: percentCompleted }));
+            }
+          },
+        });
+
+        // After successful upload, update the status and trigger CV refresh
+        setUploadStatus(prev => ({ ...prev, [file.name]: 'success' }));
+        return uploadedCV;
+      } catch (err) {
+        console.error(`Error uploading ${file.name}:`, err);
+        setUploadStatus(prev => ({ ...prev, [file.name]: 'error' }));
+        setError(prev => prev + `\n- Failed to upload ${file.name}.`);
+        return null;
+      }
+    });
+
+    await Promise.all(uploadPromises);
+    setIsUploading(false);
+    setUploadedFiles([]); // Clear files after attempt
+    refreshStats(); // Refresh CV list and dashboard stats after all uploads
+  };
+
+  // Get icon based on upload status
   const getStatusIcon = (fileName: string) => {
     const status = uploadStatus[fileName];
-    switch (status) {
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-400" />;
-      case 'error':
-        return <X className="h-4 w-4 text-red-400" />;
-      default:
-        return null;
+    const progress = uploadProgress[fileName] || 0;
+
+    if (status === 'success') {
+      return <CheckCircle className="h-5 w-5 text-green-500" />;
+    } else if (status === 'error') {
+      return <XCircle className="h-5 w-5 text-red-500" />;
+    } else if (status === 'pending' && isUploading) {
+      return (
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+          <span className="text-sm text-blue-400">{progress}%</span>
+        </div>
+      );
     }
+    return null;
   };
 
   return (
     <div className="space-y-6">
-      {/* Header with upload button */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">Upload CV Files</h2>
+      {/* Drag and drop area */}
+      <div
+        {...getRootProps()}
+        className={`bg-slate-800/60 backdrop-blur-sm rounded-xl p-8 border-2 border-dashed ${
+          isDragActive ? 'border-blue-500' : 'border-slate-700/50'
+        } flex flex-col items-center justify-center text-center cursor-pointer transition-colors duration-200`}
+      >
+        <input {...getInputProps()} />
+        <div className="p-4 bg-blue-500/20 rounded-full mb-4">
+          <FolderOpen className="h-8 w-8 text-blue-400" />
+        </div>
+        <p className="text-white font-semibold text-lg mb-2">Drag & Drop CVs here</p>
+        <p className="text-slate-400 text-sm mb-4">
+          or <span className="text-blue-400 font-medium">click to browse</span> (PDF, DOC, DOCX up to 10MB)
+        </p>
         <button
-          onClick={handleManualUpload}
-          disabled={isUploading}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          type="button"
+          onClick={handleUpload}
+          disabled={uploadedFiles.length === 0 || isUploading}
+          className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <FolderOpen className="h-5 w-5" />
-          <span>Browse Files</span>
+          {isUploading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Upload className="h-5 w-5" />
+              <span>Process Selected CVs ({uploadedFiles.length})</span>
+            </>
+          )}
         </button>
       </div>
 
-      {/* Error message */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="bg-red-500/20 border border-red-500/30 text-red-400 p-4 rounded-xl text-sm whitespace-pre-wrap">
+          <p className="font-semibold mb-2 flex items-center"><XCircle className="h-5 w-5 mr-2" />Upload Errors:</p>
+          <ul className="list-disc list-inside">
+            {error.split('\n').filter(Boolean).map((msg, index) => (
+              <li key={index}>{msg.trim().replace(/^- /, '')}</li>
+            ))}
+          </ul>
         </div>
       )}
 
-      {/* Drag & Drop area */}
-      <div
-        {...getRootProps()}
-        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 cursor-pointer ${
-          isDragActive 
-            ? 'border-blue-500 bg-blue-500/10' 
-            : 'border-slate-600/50 bg-slate-800/30'
-        }`}
-      >
-        <input {...getInputProps()} />
-        <div className="flex flex-col items-center space-y-4">
-          <div className={`p-4 rounded-full transition-colors duration-300 ${
-            isDragActive ? 'bg-blue-500/20' : 'bg-slate-700/50'
-          }`}>
-            <Upload className={`h-8 w-8 transition-colors duration-300 ${
-              isDragActive ? 'text-blue-400' : 'text-slate-400'
-            }`} />
-          </div>
-          <div>
-            <p className="text-lg font-medium text-white mb-2">
-              {isDragActive ? 'Drop the files here' : 'Drag & drop CV files here'}
-            </p>
-            <p className="text-slate-400 text-sm">
-              or use the <span className="text-blue-400 font-medium">"Browse Files"</span> button above
-            </p>
-            <p className="text-slate-500 text-xs mt-2">
-              Supports PDF, DOC, DOCX files up to 10MB each
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Uploaded files preview */}
+      {/* Display selected files */}
       {uploadedFiles.length > 0 && (
         <div className="bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-white">
-              Uploaded Files ({uploadedFiles.length})
-            </h3>
-            <button
-              onClick={uploadFiles}
-              disabled={isUploading}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isUploading ? 'Uploading...' : 'Upload CVs'}
-            </button>
-          </div>
-          
-          <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-white mb-4">Selected Files:</h3>
+          <div className="space-y-4">
             {uploadedFiles.map((file, index) => (
               <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg border border-slate-600/50"
+                key={file.name} // Using file.name as key, assuming unique names for now or add unique ID
+                className="flex items-center justify-between bg-slate-700/50 border border-slate-600/50 rounded-lg p-3"
               >
                 <div className="flex items-center space-x-3">
                   <div className="bg-blue-500/20 p-2 rounded-lg">
@@ -225,10 +207,11 @@ const FileUploader: React.FC = () => {
                 
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(file.name)}
-                  {!isUploading && (
+                  {!isUploading && uploadStatus[file.name] === 'pending' && ( // Allow removing only if not currently uploading
                     <button
                       onClick={() => removeFile(index)}
                       className="text-slate-400 hover:text-red-400 transition-colors duration-200 p-1 rounded-full hover:bg-red-500/10"
+                      title="Remove file"
                     >
                       <X className="h-5 w-5" />
                     </button>
@@ -236,16 +219,6 @@ const FileUploader: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Upload indicator */}
-      {isUploading && (
-        <div className="bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-            <p className="text-white">Uploading CVs...</p>
           </div>
         </div>
       )}

@@ -1,6 +1,9 @@
+// src/components/Dashboard/CVViewer.tsx
+
 import React from 'react';
 import { CV } from '../../types';
-import { X, Download, User, MapPin, Mail, Phone, Award, GraduationCap, Calendar } from 'lucide-react';
+import { X, Download, User, MapPin, Mail, Phone, Award, GraduationCap, Calendar, FileText, TrendingUp } from 'lucide-react'; // Added FileText and TrendingUp for completeness, assuming they are used
+import api from '../../services/api'; // Import the new API service
 
 interface CVViewerProps {
   cv: CV;
@@ -10,22 +13,17 @@ interface CVViewerProps {
 const CVViewer: React.FC<CVViewerProps> = ({ cv, onClose }) => {
   const handleDownload = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`http://localhost:5000/api/cvs/${cv.id}/download`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      // Use the api.get method for file download
+      // The api service automatically handles token and base URL
+      const response = await api.get<Blob>(`/cvs/${cv.id}/download`, {
+        responseType: 'blob', // Important: tell Axios to expect a blob response
       });
-      
-      if (!response.ok) {
-        throw new Error('Download failed');
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+
+      // Corrected: response.data is already the Blob
+      const url = window.URL.createObjectURL(response.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = cv.fileName;
+      a.download = cv.fileName; // Use the original file name
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -39,20 +37,25 @@ const CVViewer: React.FC<CVViewerProps> = ({ cv, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-800/90 backdrop-blur-lg rounded-2xl border border-slate-700/50 w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <div className="flex justify-between items-center p-6 border-b border-slate-700/50">
-          <h2 className="text-2xl font-bold text-white">CV Details</h2>
-          <div className="flex items-center space-x-3">
+      <div className="bg-slate-800/90 backdrop-blur-lg rounded-2xl p-8 border border-blue-800/30 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold text-white flex items-center space-x-3">
+            <FileText className="h-7 w-7 text-blue-400" />
+            <span>CV Details: {cv.candidateName}</span>
+          </h2>
+          <div className="flex space-x-3">
             <button
               onClick={handleDownload}
-              className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 p-2 rounded-lg transition-colors duration-200"
+              className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full transition-colors duration-200 shadow-md flex items-center space-x-2"
               title="Download CV"
             >
               <Download className="h-5 w-5" />
+              <span className="sr-only sm:not-sr-only">Download</span>
             </button>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors duration-200 p-2 rounded-lg hover:bg-slate-700/50"
+              className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 p-3 rounded-full transition-colors duration-200 shadow-md"
               title="Close"
             >
               <X className="h-5 w-5" />
@@ -60,144 +63,90 @@ const CVViewer: React.FC<CVViewerProps> = ({ cv, onClose }) => {
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+        {/* Content Area - Scrollable */}
+        <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column: Basic Info */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Candidate information */}
-              <div className="bg-slate-700/30 rounded-xl p-6">
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl">
-                    <User className="h-6 w-6 text-white" />
+              {/* Candidate Info */}
+              <div className="bg-slate-700/30 rounded-xl p-6 space-y-4">
+                <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-600/50 pb-3">Candidate Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-300">
+                  <div className="flex items-center space-x-3">
+                    <User className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Name:</span> {cv.candidateName}</span>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">{cv.candidateName}</h3>
-                    <p className="text-blue-400 font-medium">{cv.position}</p>
+                  <div className="flex items-center space-x-3">
+                    <MapPin className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Location:</span> {cv.location || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Mail className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Email:</span> {cv.email || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Phone className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Phone:</span> {cv.phone || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Uploaded:</span> {new Date(cv.uploadDate).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <FileText className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Original File:</span> {cv.fileName}</span>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center space-x-2 text-slate-300">
-                    <Mail className="h-4 w-4" />
-                    <span>{cv.email}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-slate-300">
-                    <Phone className="h-4 w-4" />
-                    <span>{cv.phone}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-slate-300">
-                    <MapPin className="h-4 w-4" />
-                    <span>{cv.location}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-slate-300">
-                    <Award className="h-4 w-4" />
-                    <span>{cv.experience} years experience</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Education */}
-              <div className="bg-slate-700/30 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-                  <GraduationCap className="h-5 w-5" />
-                  <span>Education</span>
-                </h4>
-                <p className="text-slate-300">{cv.education}</p>
               </div>
 
               {/* Skills */}
               <div className="bg-slate-700/30 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-white mb-4">Skills</h4>
-                <div className="flex flex-wrap gap-2">
-                  {cv.skills.map((skill, index) => (
-                    <span
-                      key={index}
-                      className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-lg text-sm font-medium border border-blue-500/30"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Professional summary */}
-              <div className="bg-slate-700/30 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-white mb-4">Professional Summary</h4>
-                <p className="text-slate-300 leading-relaxed">
-                  Experienced {cv.position.toLowerCase()} with {cv.experience} years of expertise in software development 
-                  and project management. Proven track record of delivering high-quality solutions and leading 
-                  cross-functional teams. Strong background in {cv.skills.slice(0, 3).join(', ')} and modern 
-                  development practices.
-                </p>
+                <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-600/50 pb-3">Skills</h3>
+                {cv.skills && cv.skills.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {cv.skills.map((skill, index) => (
+                      <span key={index} className="bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-sm font-medium">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 text-sm">No skills listed.</p>
+                )}
               </div>
             </div>
 
-            <div className="space-y-6">
-              {/* Assessment */}
-              <div className="bg-slate-700/30 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-white mb-4">Assessment</h4>
-                <div className="space-y-4">
-                  {cv.score && (
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-slate-300 text-sm">Overall Score</span>
-                        <span className="text-white font-semibold">{cv.score}%</span>
-                      </div>
-                      <div className="w-full bg-slate-600 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-600 to-indigo-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${cv.score}%` }}
-                        ></div>
-                      </div>
+            {/* Right Column: Professional Info & AI Insights */}
+            <div className="lg:col-span-1 space-y-6">
+              {/* Professional Summary */}
+              <div className="bg-slate-700/30 rounded-xl p-6 space-y-4">
+                <h3 className="text-xl font-semibold text-white mb-4 border-b border-slate-600/50 pb-3">Professional Summary</h3>
+                <div className="space-y-3 text-sm text-slate-300">
+                  <div className="flex items-center space-x-3">
+                    <Award className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Position:</span> {cv.position || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Experience:</span> {cv.experience} years</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <GraduationCap className="h-5 w-5 text-blue-400" />
+                    <span><span className="font-semibold text-white">Education:</span> {cv.education || 'N/A'}</span>
+                  </div>
+                  {cv.score !== undefined && (
+                    <div className="flex items-center space-x-3">
+                      <TrendingUp className="h-5 w-5 text-blue-400" />
+                      <span><span className="font-semibold text-white">AI Score:</span> {cv.score}%</span>
                     </div>
                   )}
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 text-sm">Experience Match</span>
-                      <span className={`text-sm ${cv.experience >= 5 ? 'text-green-400' : cv.experience >= 3 ? 'text-yellow-400' : 'text-red-400'}`}>
-                        {cv.experience >= 5 ? 'High' : cv.experience >= 3 ? 'Medium' : 'Low'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 text-sm">Skills Match</span>
-                      <span className={`text-sm ${cv.skills.length >= 5 ? 'text-green-400' : cv.skills.length >= 3 ? 'text-yellow-400' : 'text-red-400'}`}>
-                        {cv.skills.length >= 5 ? 'High' : cv.skills.length >= 3 ? 'Good' : 'Basic'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 text-sm">Education</span>
-                      <span className={`text-sm ${['PhD', 'Master'].includes(cv.education) ? 'text-green-400' : 'text-blue-400'}`}>
-                        {['PhD', 'Master'].includes(cv.education) ? 'Advanced' : 'Standard'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* File information */}
-              <div className="bg-slate-700/30 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-white mb-4">File Information</h4>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">File Name</span>
-                    <span className="text-white truncate max-w-[150px]" title={cv.fileName}>{cv.fileName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">File Size</span>
-                    <span className="text-white">{(cv.fileSize / 1024 / 1024).toFixed(2)} MB</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Upload Date</span>
-                    <span className="text-white">{cv.uploadDate.toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Status</span>
-                    <span className={`font-medium ${
-                      cv.status === 'shortlisted' ? 'text-green-400' :
-                      cv.status === 'reviewed' ? 'text-blue-400' :
-                      cv.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'
+                  <div className="flex items-center space-x-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      cv.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                      cv.status === 'reviewed' ? 'bg-blue-500/20 text-blue-400' :
+                      'bg-red-500/20 text-red-400'
                     }`}>
-                      {cv.status.charAt(0).toUpperCase() + cv.status.slice(1)}
+                      Status: {cv.status.charAt(0).toUpperCase() + cv.status.slice(1)}
                     </span>
                   </div>
                 </div>

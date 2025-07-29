@@ -1,5 +1,8 @@
+// src/contexts/AuthContext.tsx
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
+import api from '../services/api'; // Import the new API service
 
 interface AuthContextType {
   user: User | null;
@@ -29,39 +32,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Login function with backend integration
+  // Login function with backend integration using the new API client
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      // Check if response is ok and has content
-      if (!response.ok) {
-        let errorMessage = 'Login failed';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          // If JSON parsing fails, use status text
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      // Safely parse JSON response
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error('Invalid response from server');
-      }
-
+      // Use the api.post method for login
+      const data = await api.post<{ user: User; token: string }>('auth/login', { email, password });
+      
       localStorage.setItem('authToken', data.token);
       setUser({
         id: data.user.id,
@@ -72,46 +49,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       return true;
     } catch (error) {
-      // Handle network errors (backend not running)
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('Backend server is not running. Please start your Express.js server.');
-      }
       console.error('Login failed:', error);
+      localStorage.removeItem('authToken'); // Ensure token is removed on failure
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Signup function with backend integration
+  // Signup function with backend integration using the new API client
   const signup = async (username: string, email: string, password: string, name: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, email, password, name }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Signup failed';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error('Invalid response from server');
-      }
+      // Use the api.post method for signup
+      const data = await api.post<{ user: User; token: string }>('auth/signup', { username, email, password, name });
 
       localStorage.setItem('authToken', data.token);
       setUser({
@@ -123,55 +74,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       return true;
     } catch (error) {
-      // Handle network errors (backend not running)
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('Backend server is not running. Please start your Express.js server.');
-      }
       console.error('Signup failed:', error);
+      localStorage.removeItem('authToken'); // Ensure token is removed on failure
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Logout function with backend integration
+  // Logout function
   const logout = () => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      // Optional: Call backend to invalidate token
-      fetch('http://localhost:5000/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }).catch(console.error);
-    }
-    
     localStorage.removeItem('authToken');
     setUser(null);
   };
 
-  // Update user profile
+  // Update profile function using the new API client
   const updateProfile = async (updates: Partial<User>): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:5000/api/auth/profile', {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update profile');
-      }
-
-      const data = await response.json();
-      setUser(prev => prev ? { ...prev, ...data.user } : null);
+      // Use the api.put method for profile updates
+      const data = await api.put<{ user: User }>('auth/profile', updates);
+      setUser(prev => (prev ? { ...prev, ...data.user } : null));
       return true;
     } catch (error) {
       console.error('Profile update failed:', error);
@@ -181,24 +104,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Change password
+  // Change password function using the new API client
   const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to change password');
-      }
-
+      // Use the api.post method for changing password
+      await api.post('auth/change-password', { currentPassword, newPassword });
       return true;
     } catch (error) {
       console.error('Password change failed:', error);
@@ -212,30 +123,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
-      fetch('http://localhost:5000/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.user) {
-          setUser({
-            id: data.user.id,
-            username: data.user.username,
-            email: data.user.email,
-            name: data.user.name,
-            company: data.user.company || 'OGTL'
-          });
-        } else {
+      // Use the api.get method to fetch user profile
+      api.get<{ user: User }>('auth/profile')
+        .then(data => {
+          if (data.user) {
+            setUser({
+              id: data.user.id,
+              username: data.user.username,
+              email: data.user.email,
+              name: data.user.name,
+              company: data.user.company || 'OGTL'
+            });
+          } else {
+            localStorage.removeItem('authToken');
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch user profile on app load:', error);
           localStorage.removeItem('authToken');
-        }
-      })
-      .catch(() => {
-        localStorage.removeItem('authToken');
-      });
+        });
     }
-  }, []);
+  }, []); // Run once on component mount
 
   const value = {
     user,
