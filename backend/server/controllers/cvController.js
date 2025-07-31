@@ -5,13 +5,6 @@ import cvAnalyzer from '../services/cvAnalyzer.js';      // Ensure .js extension
 import analyticsService from '../services/analyticsService.js'; // Ensure .js extension
 import FileProcessor from '../services/fileProcessor.js';  // Ensure .js extension and correct name (no typo!)
 import fs from 'fs/promises';                            // Use 'fs/promises' for async file operations
-import path from 'path';                                 // Import path module
-
-// Get __dirname and __filename equivalent for ES Modules if needed for file paths
-// import { fileURLToPath } from 'url';
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-
 
 class CVController {
 

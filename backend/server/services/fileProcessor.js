@@ -1,6 +1,5 @@
 // src/services/fileProcessor.js
 import fs from 'fs';
-import path from 'path';
 import { PdfReader } from 'pdfreader'; // For PDF text extraction
 import mammoth from 'mammoth';       // For DOCX text extraction - make sure you've installed it!
 

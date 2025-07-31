@@ -47,7 +47,7 @@ export const createUser = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error("❌ Error in createUser:", error);
+    console.error(" Error in createUser:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error during user registration.",
@@ -101,7 +101,7 @@ export const loginUser = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error("❌ Error in loginUser:", error);
+    console.error(" Error in loginUser:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error during login.",

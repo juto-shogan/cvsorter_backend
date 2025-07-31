@@ -1,178 +1,61 @@
 // src/services/api.ts
 
-// Define the base URL for your backend API.
-// It's good practice to use an environment variable for this.
-// For development, it's typically 'http://localhost:5000'.
-// When deploying, you would change this to your production backend URL.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+import axios, { InternalAxiosRequestConfig } from 'axios';
+ 
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api', // Your backend API base URL
+  // No need to set Content-Type here; Axios handles it automatically for FormData.
+});
 
-/**
- * A centralized API client for making authenticated requests to the backend.
- * It automatically includes the authentication token from localStorage.
- */
-const api = {
-  /**
-   * Makes a GET request to the specified endpoint.
-   * @param endpoint The API endpoint (e.g., 'auth/profile', 'cvs').
-   * @returns A Promise that resolves to the JSON response from the API.
-   * @throws An error if the network request fails or the response is not OK.
-   */
-  get: async <T>(endpoint: string, p0: { responseType: string; }): Promise<T> => {
-    const token = localStorage.getItem('authToken');
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+// Request interceptor to add the authorization token
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem('authToken'); // Get token from local storage
+
+    // Direct assignment to config.headers.Authorization.
+    // InternalAxiosRequestConfig ensures config.headers is always an AxiosHeaders object
+    // (or compatible) where direct property setting works.
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`; 
     }
 
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method: 'GET',
-      headers,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Something went wrong' }));
-      throw new Error(errorData.message || 'Network response was not ok');
+    // When sending FormData, Axios automatically sets 'Content-Type' to 'multipart/form-data'.
+    // We explicitly remove any pre-existing 'Content-Type' header here to ensure Axios
+    // correctly applies its automatic handling for FormData.
+    // This is safer than relying on implicit behavior, especially if default headers were set elsewhere.
+    if (config.data instanceof FormData) {
+      // Use the 'delete' method provided by AxiosHeaders for robustness,
+      // or direct property deletion if it's treated as a Record<string, any>.
+      // For modern Axios and InternalAxiosRequestConfig, direct deletion works.
+      delete config.headers['Content-Type'];
     }
-    return response.json();
+
+    return config;
   },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
-  /**
-   * Makes a POST request to the specified endpoint.
-   * @param endpoint The API endpoint (e.g., 'auth/login', 'cvs').
-   * @param data The data to send in the request body.
-   * @returns A Promise that resolves to the JSON response from the API.
-   * @throws An error if the network request fails or the response is not OK.
-   */
-  post: async <T>(endpoint: string, data?: any, p0?: { onUploadProgress: (progressEvent: any) => void; }): Promise<T> => {
-    const token = localStorage.getItem('authToken');
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+// Response interceptor to handle errors globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Log the full Axios error response for debugging
+    console.error('API call error details:', error.response || error); 
+    
+    // Check for 401 Unauthorized errors
+    if (error.response && error.response.status === 401) {
+      console.warn('Unauthorized access detected. Clearing token and redirecting to login.');
+      localStorage.removeItem('authToken'); // Clear invalid token
+      // Redirect to login page (adjust '/login' to your actual login route)
+      window.location.href = '/login'; 
     }
-
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Something went wrong' }));
-      throw new Error(errorData.message || 'Network response was not ok');
-    }
-    return response.json();
-  },
-
-  /**
-   * Makes a PUT request to the specified endpoint.
-   * @param endpoint The API endpoint (e.g., 'cvs/{id}').
-   * @param data The data to send in the request body.
-   * @returns A Promise that resolves to the JSON response from the API.
-   * @throws An error if the network request fails or the response is not OK.
-   */
-  put: async <T>(endpoint: string, data?: any): Promise<T> => {
-    const token = localStorage.getItem('authToken');
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Something went wrong' }));
-      throw new Error(errorData.message || 'Network response was not ok');
-    }
-    return response.json();
-  },
-
-  /**
-   * Makes a DELETE request to the specified endpoint.
-   * @param endpoint The API endpoint (e.g., 'cvs/{id}').
-   * @returns A Promise that resolves to the JSON response from the API.
-   * @throws An error if the network request fails or the response is not OK.
-   */
-  delete: async <T>(endpoint: string): Promise<T> => {
-    const token = localStorage.getItem('authToken');
-    const headers: HeadersInit = {}; // No Content-Type for DELETE unless sending body
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method: 'DELETE',
-      headers,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Something went wrong' }));
-      throw new Error(errorData.message || 'Network response was not ok');
-    }
-    // DELETE requests might not always return a body, so handle accordingly
-    return response.json().catch(() => ({} as T)); // Return empty object if no JSON
-  },
-
-  /**
-   * Makes a file upload (POST) request.
-   * Specifically for handling multipart/form-data for file uploads.
-   * @param endpoint The API endpoint (e.g., 'upload').
-   * @param formData The FormData object containing the file(s).
-   * @returns A Promise that resolves to the JSON response from the API.
-   * @throws An error if the network request fails or the response is not OK.
-   */
-  uploadFile: async <T>(endpoint: string, formData: FormData): Promise<T> => {
-    const token = localStorage.getItem('authToken');
-    const headers: HeadersInit = {}; // Do NOT set Content-Type for FormData, browser sets it correctly
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Something went wrong' }));
-      throw new Error(errorData.message || 'Network response was not ok');
-    }
-    return response.json();
-  },
-
-  /**
-   * Handles downloading a file from a GET endpoint.
-   * @param endpoint The API endpoint (e.g., 'cvs/{id}/download').
-   * @returns A Promise that resolves to a Blob representing the file content.
-   * @throws An error if the network request fails or the response is not OK.
-   */
-  downloadFile: async (endpoint: string): Promise<Blob> => {
-    const token = localStorage.getItem('authToken');
-    const headers: HeadersInit = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-      method: 'GET',
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error('File download failed');
-    }
-    return response.blob();
-  },
-};
+    
+    // Create a more informative error message for frontend
+    const errorMessage = error.response?.data?.message || error.message || 'Something went wrong';
+    return Promise.reject(new Error(errorMessage)); // Re-throw a custom error
+  }
+);
 
 export default api;
