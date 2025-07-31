@@ -1,7 +1,3 @@
-
-**Markdown**
-
-```
 # OGTL CV Management System - Backend
 
 ## Project Overview
@@ -121,7 +117,7 @@ The backend exposes a set of RESTful API endpoints:
 * **Authentication (`/api/auth`)**:
     * `POST /api/auth/register`: Register a new user.
     * `POST /api/auth/login`: Authenticate user and return a JWT.
-    * `GET /api/auth/me`: Get current authenticated user's profile.
+    * `GET /api/auth/me`: Get the current authenticated user's profile.
 * **CV Management (`/api/cvs`)**:
     * `POST /api/cvs/upload-cv`: Upload a new CV file and save its metadata.
     * `GET /api/cvs`: Fetch all CVs for the authenticated user (with filtering/pagination).
@@ -138,7 +134,7 @@ The backend exposes a set of RESTful API endpoints:
 
 The backend directly supports the frontend's functionalities by:
 
-* **User Authentication & Authorization:** Verifying user credentials and ensuring only authenticated users can access protected resources.
+* **User Authentication & Authorisation:** Verifying user credentials and ensuring only authenticated users can access protected resources.
 * **File Upload & Storage:** Receiving binary CV files, saving them to the designated `uploads` directory, and storing relevant metadata in MongoDB.
 * **Data Persistence:** Storing and managing user accounts and all CV-related information (parsed data, status, etc.) in the MongoDB database.
 * **Data Retrieval & Filtering:** Efficiently querying the database to fetch CVs based on various criteria (filters, sorting, pagination) requested by the frontend.
@@ -178,4 +174,3 @@ The backend directly supports the frontend's functionalities by:
 Contributions are highly appreciated! If you have suggestions, bug reports, or would like to contribute code, please feel free to open an issue or submit a pull request. Let's build this together!
 
 ---
-```
