@@ -1,8 +1,3 @@
-Got it! Here's a `README.md` specifically for the frontend part of your project, detailing its structure, technologies, and features.
-
-**Markdown**
-
-```
 # OGTL CV Management System - Frontend
 
 ## Project Overview
@@ -19,7 +14,7 @@ The frontend leverages a cutting-edge stack to provide a robust and dynamic user
 
 * **React.js:** A declarative JavaScript library for building interactive user interfaces.
 * **TypeScript:** A strongly typed superset of JavaScript that enhances code quality, readability, and maintainability.
-* **Vite:** A next-generation frontend tooling that provides an extremely fast development experience and optimized build process.
+* **Vite:** A next-generation frontend tooling that provides an extremely fast development experience and optimised build process.
 * **Tailwind CSS:** A utility-first CSS framework that enables rapid UI development and highly customizable designs directly in markup.
 * **React Router DOM:** For declarative client-side routing, managing navigation between different views.
 * **Axios:** A robust, promise-based HTTP client used for making requests to the backend API, featuring interceptors for authentication and error handling.
@@ -132,13 +127,13 @@ Follow these steps to set up and run the frontend locally:
 ## Key Features
 
 * **User Authentication:** Secure login and registration forms.
-* **Dashboard:** Centralized view of all uploaded CVs with statistics.
+* **Dashboard:** Centralised view of all uploaded CVs with statistics.
 * **CV Upload:** Drag-and-drop interface for uploading multiple CV files (PDF, DOC, DOCX).
 * **Filtering & Sorting:** Dynamic filtering by position, experience, status, location, and comprehensive sorting options.
 * **CV Details Viewer:** Modal view for detailed CV information and direct download of original files.
 * **CV Status Management:** Easily update CV statuses (e.g., reviewed, approved, rejected).
 * **Email Management:** A dedicated page to compose and send emails to approved candidates, with options to include CV attachments.
-* **Responsive Design:** Optimized for various screen sizes using Tailwind CSS.
+* **Responsive Design:** Optimised for various screen sizes using Tailwind CSS.
 * **Global State Management:** Efficient state handling for user authentication and CV data using React Context API.
 * **Robust API Communication:** Configured with Axios for secure and error-handled requests.
 
@@ -152,14 +147,14 @@ Follow these steps to set up and run the frontend locally:
 * **File Upload Component:** `FileUploader.tsx` with drag-and-drop, validation, and progress indicators.
 * **CV Viewer:** Displays extracted CV data and allows downloading the original file.
 * **Email Page:** Basic UI for composing emails and listing approved candidates for outreach.
-* **Global Contexts:** `AuthContext` and `CVContext` are set up and providing data to relevant components.
-* **Axios Interceptors:** For automatically adding authorization tokens to requests and global error handling (e.g., redirecting on 401).
+* **Global Contexts:** `AuthContext` and `CVContext` are set up and provide data to relevant components.
+* **Axios Interceptors:** For automatically adding authorisation tokens to requests and global error handling (e.g., redirecting on 401).
 
 ## To Be Done (What's Not Yet Done)
 
 * **Enhanced Real-time Upload Feedback:** More granular progress bars per file and more detailed success/error states for individual uploads.
 * **User Profile Management:** Pages for users to view and update their profile information.
-* **Advanced UI/UX Enhancements:** Implement features like infinite scrolling/pagination for large CV lists, more interactive data visualizations for dashboard stats, and potentially a more sophisticated skill multi-select.
+* **Advanced UI/UX Enhancements:** Implement features like infinite scrolling/pagination for large CV lists, more interactive data visualisations for dashboard stats, and potentially a more sophisticated skill multi-select.
 * **Form Validation:** More advanced and user-friendly form validation for all forms (e.g., using a library like Zod or Yup).
 * **Notifications System:** Implement toast notifications or a similar system for user feedback on actions (e.g., "CV updated successfully!").
 * **Accessibility Improvements:** Ensure the application meets accessibility standards.
@@ -174,4 +169,3 @@ Follow these steps to set up and run the frontend locally:
 Contributions are highly appreciated! If you have suggestions, bug reports, or would like to contribute code, please feel free to open an issue or submit a pull request. Let's build this together!
 
 ---
-```
