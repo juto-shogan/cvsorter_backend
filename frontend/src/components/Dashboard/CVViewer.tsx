@@ -15,12 +15,12 @@ const CVViewer: React.FC<CVViewerProps> = ({ cv, onClose }) => {
     try {
       // Use the api.get method for file download
       // The api service automatically handles token and base URL
-      const response = await api.get<Blob>(`/cvs/${cv.id}/download`, {
+      const fileBlob = await api.get<Blob>(`cvs/${cv.id || cv._id}/download`, {
         responseType: 'blob', // Important: tell Axios to expect a blob response
       });
 
       // Corrected: response.data is already the Blob
-      const url = window.URL.createObjectURL(response.data);
+      const url = window.URL.createObjectURL(fileBlob);
       const a = document.createElement('a');
       a.href = url;
       a.download = cv.fileName; // Use the original file name

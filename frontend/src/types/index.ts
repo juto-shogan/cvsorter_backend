@@ -1,7 +1,8 @@
 export interface CV {
   id: string;
+  _id?: string;
   fileName: string;
-  uploadDate: Date;
+  uploadDate: Date | string;
   fileSize: number;
   candidateName: string;
   position: string;
@@ -11,9 +12,9 @@ export interface CV {
   location: string;
   email: string;
   phone: string;
-  status: 'reviewed' | 'approved' | 'rejected';
+  status: 'pending' | 'reviewed' | 'approved' | 'rejected';
   score?: number;
-  file: File;
+  file?: File;
 }
 
 export interface User {
@@ -29,8 +30,8 @@ export interface DashboardAnalytics {
   approved: number;
   reviewed: number;
   rejected: number;
-  recentUploads: number;
-  averageScore: number;
+  recentUploads?: number;
+  averageScore?: number;
 }
 
 export interface FilterCriteria {

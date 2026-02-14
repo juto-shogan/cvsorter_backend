@@ -24,7 +24,7 @@ const CVCard: React.FC<CVCardProps> = ({ cv, onView }) => {
   // Handle status change with optimistic updates
   const handleStatusChange = async (newStatus: CV['status']) => {
     try {
-      await updateCV(cv.id, { status: newStatus });
+      await updateCV(cv.id || cv._id || '', { status: newStatus });
     } catch (error) {
       console.error('Failed to update CV status:', error);
       // Could show a toast notification here
@@ -42,7 +42,7 @@ const CVCard: React.FC<CVCardProps> = ({ cv, onView }) => {
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete ${cv.candidateName}'s CV?`)) {
       try {
-        await deleteCV(cv.id);
+        await deleteCV(cv.id || cv._id || '');
       } catch (error) {
         console.error('Failed to delete CV:', error);
         alert('Failed to delete CV. Please try again.');

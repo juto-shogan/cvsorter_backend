@@ -1,13 +1,10 @@
-// src/models/CV.js
-
 import mongoose from 'mongoose';
 
-// Define the schema for the CV model
 const CVSchema = new mongoose.Schema({
   candidateName: {
     type: String,
     required: true,
-    trim: true, // Removes whitespace from both ends of a string
+    trim: true,
   },
   position: {
     type: String,
@@ -17,11 +14,12 @@ const CVSchema = new mongoose.Schema({
   experience: {
     type: Number,
     required: true,
-    min: 0, // Experience cannot be negative
+    min: 0,
+    default: 0,
   },
   skills: {
-    type: [String], // Array of strings
-    default: [],    // Default to an empty array
+    type: [String],
+    default: [],
   },
   education: {
     type: String,
@@ -36,8 +34,8 @@ const CVSchema = new mongoose.Schema({
   email: {
     type: String,
     trim: true,
-    lowercase: true, // Stores emails in lowercase
-    match: [/^\S+@\S+\.\S+$/, 'Please use a valid email address.'], // Basic email validation
+    lowercase: true,
+    default: 'n/a@example.com',
   },
   phone: {
     type: String,
@@ -58,21 +56,41 @@ const CVSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  fileSize: {
+    type: Number,
+    required: true,
+  },
+  mimeType: {
+    type: String,
+    required: true,
+  },
+  uploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
   uploadDate: {
     type: Date,
-    default: Date.now, // Sets the default upload date to the current timestamp
+    default: Date.now,
   },
   status: {
     type: String,
-    enum: ['pending', 'reviewed', 'approved', 'rejected'], // Restrict status to these values
-    default: 'pending', // Default status for new CVs
+    enum: ['pending', 'reviewed', 'approved', 'rejected'],
+    default: 'pending',
   },
 }, {
-  timestamps: true, // Adds createdAt and updatedAt timestamps automatically
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    transform: (_, ret) => {
+      ret.id = ret._id;
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    },
+  },
 });
 
-// Check if the model already exists before compiling it to prevent OverwriteModelError
-// This is crucial for environments where models might be re-imported (e.g., hot-reloading)
 const CV = mongoose.models.CV || mongoose.model('CV', CVSchema);
 
-export default CV; // Export the CV model
+export default CV;

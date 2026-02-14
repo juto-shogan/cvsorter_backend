@@ -12,6 +12,7 @@ const router = express.Router();
  * @access Public
  */
 router.post('/register', validateUserRegistration, createUser); // <--- Use validation middleware
+router.post('/signup', validateUserRegistration, createUser); // backward-compatible alias
 
 /**
  * @route POST /api/auth/login
