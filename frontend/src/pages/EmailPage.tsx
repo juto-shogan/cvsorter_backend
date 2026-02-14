@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useCV } from '../contexts/CVContext';
 import { ArrowLeft, Mail, Send, Users, FileText, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import api from '../services/api';
 
 const EmailPage: React.FC = () => {
   const { cvs } = useCV();
@@ -46,28 +47,13 @@ const EmailPage: React.FC = () => {
     setSendStatus('idle');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:5000/api/email/send-approved-cvs', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          recipients: emailData.recipients.split(',').map(email => email.trim()),
-          subject: emailData.subject,
-          message: emailData.message,
-          includeAttachments: emailData.includeAttachments,
-          cvIds: approvedCVs.map(cv => cv.id)
-        }),
+      await api.post('email/send-approved-cvs', {
+        recipients: emailData.recipients.split(',').map(email => email.trim()),
+        subject: emailData.subject,
+        message: emailData.message,
+        includeAttachments: emailData.includeAttachments,
+        cvIds: approvedCVs.map(cv => cv.id || cv._id).filter(Boolean),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to send email');
-      }
-
-      await response.json();
       setSendStatus('success');
       // Reset form after successful send
       setTimeout(() => {

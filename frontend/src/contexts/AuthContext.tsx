@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
     try {
       // Use the api.post method for signup
-      const data = await api.post<{ user: User; token: string }>('auth/signup', { username, email, password, name });
+      const data = await api.post<{ user: User; token: string }>('auth/register', { username, email, password, name });
 
       localStorage.setItem('authToken', data.token);
       setUser({

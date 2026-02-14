@@ -12,7 +12,7 @@ const FileUploader: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{[key: string]: 'pending' | 'success' | 'error'}>({});
   const [error, setError] = useState<string>('');
-  const { addCV, refreshStats } = useCV(); // Use refreshStats from CVContext
+  const { refreshStats } = useCV(); // Use refreshStats from CVContext
   const [uploadProgress, setUploadProgress] = useState<{[key: string]: number}>({});
 
   // Helper to format file size
@@ -83,7 +83,7 @@ const FileUploader: React.FC = () => {
 
     const uploadPromises = uploadedFiles.map(async (file) => {
       const formData = new FormData();
-      formData.append('cvFile', file); // 'cvFile' should match the backend's expected field name
+      formData.append('cv', file); // must match backend field name
 
       try {
         setUploadStatus(prev => ({ ...prev, [file.name]: 'pending' }));
@@ -91,7 +91,7 @@ const FileUploader: React.FC = () => {
 
         // Use the api.post method for file upload
         // The api service automatically handles token and base URL
-        const uploadedCV = await api.post<CV>('upload-cv', formData, {
+        const uploadedCV = await api.post<{ cv: CV }>('cvs/upload', formData, {
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
               const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -102,7 +102,7 @@ const FileUploader: React.FC = () => {
 
         // After successful upload, update the status and trigger CV refresh
         setUploadStatus(prev => ({ ...prev, [file.name]: 'success' }));
-        return uploadedCV;
+        return uploadedCV.cv;
       } catch (err) {
         console.error(`Error uploading ${file.name}:`, err);
         setUploadStatus(prev => ({ ...prev, [file.name]: 'error' }));

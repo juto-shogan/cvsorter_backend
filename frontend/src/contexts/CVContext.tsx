@@ -1,10 +1,7 @@
-// src/contexts/CVContext.tsx
-
 import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { CV, FilterCriteria } from '../types';
-import api from '../services/api'; // Import the new API service
+import api from '../services/api';
 
-// Define the shape of your dashboard statistics
 interface DashboardStats {
   total: number;
   approved: number;
@@ -12,7 +9,6 @@ interface DashboardStats {
   rejected: number;
 }
 
-// Define the shape of your CVContext values
 interface CVContextType {
   cvs: CV[];
   filteredCVs: CV[];
@@ -21,23 +17,39 @@ interface CVContextType {
   filters: FilterCriteria;
   searchTerm: string;
   sortBy: string;
-  dashboardStats: DashboardStats; // Add dashboardStats to context type
+  dashboardStats: DashboardStats;
   fetchCVs: () => Promise<void>;
   addCV: (newCV: CV) => void;
-  updateCV: (id: string, updates: Partial<CV>) => Promise<void>; // Make updateCV return a promise
-  deleteCV: (id: string) => Promise<void>; // Make deleteCV return a promise
+  updateCV: (id: string, updates: Partial<CV>) => Promise<void>;
+  deleteCV: (id: string) => Promise<void>;
   updateFilters: (newFilters: Partial<FilterCriteria>) => void;
   setSearchTerm: (term: string) => void;
   setSortBy: (criteria: string) => void;
-  refreshStats: () => Promise<void>; // Add refreshStats to context type
+  refreshStats: () => Promise<void>;
 }
 
-// Create the CVContext
 const CVContext = createContext<CVContextType | undefined>(undefined);
 
 interface CVProviderProps {
   children: ReactNode;
 }
+
+const normalizeCV = (cv: Partial<CV> & { _id?: string; id?: string }): CV => ({
+  ...cv,
+  id: cv.id || cv._id || '',
+  uploadDate: cv.uploadDate || new Date().toISOString(),
+  skills: cv.skills || [],
+  experience: Number(cv.experience) || 0,
+  status: (cv.status as CV['status']) || 'pending',
+  fileName: cv.fileName || 'unknown',
+  fileSize: Number(cv.fileSize) || 0,
+  candidateName: cv.candidateName || 'Unknown Candidate',
+  position: cv.position || 'General Applicant',
+  education: cv.education || 'N/A',
+  location: cv.location || 'N/A',
+  email: cv.email || 'N/A',
+  phone: cv.phone || 'N/A',
+});
 
 export const useCV = () => {
   const context = useContext(CVContext);
@@ -61,7 +73,7 @@ export const CVProvider: React.FC<CVProviderProps> = ({ children }) => {
     status: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('uploadDate'); // Default sort by upload date
+  const [sortBy, setSortBy] = useState('uploadDate');
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     total: 0,
     approved: 0,
@@ -69,14 +81,12 @@ export const CVProvider: React.FC<CVProviderProps> = ({ children }) => {
     rejected: 0,
   });
 
-  // Function to fetch all CVs
   const fetchCVs = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Use the api.get method to fetch CVs
       const data = await api.get<CV[]>('cvs');
-      setCVs(data);
+      setCVs((data || []).map(normalizeCV));
     } catch (err) {
       console.error('Failed to fetch CVs:', err);
       setError('Failed to load CVs. Please try again.');
@@ -85,74 +95,59 @@ export const CVProvider: React.FC<CVProviderProps> = ({ children }) => {
     }
   }, []);
 
-  // Function to fetch dashboard statistics
   const fetchDashboardStats = useCallback(async () => {
     try {
-      // Use the api.get method to fetch dashboard stats
       const stats = await api.get<DashboardStats>('dashboard-stats');
       setDashboardStats(stats);
     } catch (err) {
       console.error('Failed to fetch dashboard stats:', err);
-      // Optionally set an error state for stats if needed
     }
   }, []);
 
-  // Combined refresh function for dashboard data
   const refreshStats = useCallback(async () => {
     await Promise.all([fetchCVs(), fetchDashboardStats()]);
   }, [fetchCVs, fetchDashboardStats]);
 
-  // Add a new CV (assuming it's handled by the upload process and then potentially added locally or refetched)
-  // For now, we'll keep it simple: if a CV is added, we'll refetch all CVs to ensure consistency.
-  const addCV = useCallback((newCV: CV) => {
-    // In a real scenario, this would likely be called after a successful upload
-    // that returns the new CV data from the backend.
-    // For now, if we call addCV directly, we will just refetch everything.
+  const addCV = useCallback((_newCV: CV) => {
     fetchCVs();
   }, [fetchCVs]);
 
-  // Update an existing CV
   const updateCV = useCallback(async (id: string, updates: Partial<CV>) => {
     try {
-      // Use the api.put method to update a CV
-      const updatedData = await api.put<CV>(`cvs/${id}`, updates);
+      const updatedPayload = await api.put<{ cv: CV }>(`cvs/${id}`, updates);
+      const updatedCV = normalizeCV(updatedPayload.cv);
+
       setCVs(prevCvs =>
-        prevCvs.map(cv => (cv.id === id ? { ...cv, ...updatedData } : cv))
+        prevCvs.map(cv => (cv.id === id ? { ...cv, ...updatedCV } : cv))
       );
-      // Refresh stats if status changes
+
       if (updates.status) {
         fetchDashboardStats();
       }
     } catch (err) {
       console.error(`Failed to update CV ${id}:`, err);
-      throw err; // Re-throw to allow component to handle
+      throw err;
     }
   }, [fetchDashboardStats]);
 
-  // Delete a CV
   const deleteCV = useCallback(async (id: string) => {
     try {
-      // Use the api.delete method to delete a CV
       await api.delete<void>(`cvs/${id}`);
       setCVs(prevCvs => prevCvs.filter(cv => cv.id !== id));
-      fetchDashboardStats(); // Refresh stats after deletion
+      fetchDashboardStats();
     } catch (err) {
       console.error(`Failed to delete CV ${id}:`, err);
-      throw err; // Re-throw to allow component to handle
+      throw err;
     }
   }, [fetchDashboardStats]);
 
-
-  // Fetch CVs and dashboard stats on component mount
   useEffect(() => {
     refreshStats();
   }, [refreshStats]);
 
-  // Filter and sort CVs based on state
   const filteredAndSortedCVs = useMemo(() => {
-    let currentCVs = cvs
+    return cvs
       .filter(cv => {
-        // Search term filter
         const matchesSearch = searchTerm ?
           cv.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           cv.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -162,7 +157,6 @@ export const CVProvider: React.FC<CVProviderProps> = ({ children }) => {
           cv.location.toLowerCase().includes(searchTerm.toLowerCase())
           : true;
 
-        // Filters from FilterCriteria
         const matchesPosition = filters.position ? cv.position.toLowerCase().includes(filters.position.toLowerCase()) : true;
         const matchesExperience = cv.experience >= filters.minExperience && cv.experience <= filters.maxExperience;
         const matchesStatus = filters.status ? cv.status === filters.status : true;
@@ -181,7 +175,6 @@ export const CVProvider: React.FC<CVProviderProps> = ({ children }) => {
           case 'candidateName':
             return a.candidateName.localeCompare(b.candidateName);
           case 'score':
-            // Assuming score can be undefined, handle it
             return (b.score || 0) - (a.score || 0);
           case 'experience':
             return b.experience - a.experience;
@@ -189,8 +182,6 @@ export const CVProvider: React.FC<CVProviderProps> = ({ children }) => {
             return 0;
         }
       });
-
-    return currentCVs;
   }, [cvs, searchTerm, filters, sortBy]);
 
   const updateFilters = useCallback((newFilters: Partial<FilterCriteria>) => {
@@ -228,8 +219,6 @@ export const CVProvider: React.FC<CVProviderProps> = ({ children }) => {
     updateCV,
     deleteCV,
     updateFilters,
-    setSearchTerm,
-    setSortBy,
     refreshStats,
   ]);
 

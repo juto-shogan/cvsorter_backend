@@ -11,7 +11,8 @@ import 'dotenv/config';
 import authRoutes from './routes/auth.js';       // For HR user authentication (register, login, profile)
 import cvsRoutes from './routes/cvs.js';          // For CV management (get all, download, etc.)
 // NEW: Import the new miscellaneous routes for dashboard stats and upload
-import miscRoutes from './routes/miscRoutes.js'; 
+import miscRoutes from './routes/miscRoutes.js';
+import emailRoutes from './routes/email.js';
 // NOTE: We will handle dashboard stats via miscRoutes.js now, 
 // so analyticsRoutes might become redundant for frontend dashboard calls.
 // If analyticsRoutes contains other non-dashboard analytics, keep it.
@@ -42,11 +43,11 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes); // Mount authentication routes
 app.use('/api/cvs', cvsRoutes);   // Mount CV-specific routes (e.g., /api/cvs, /api/cvs/:id/download)
 
-// NEW: Mount the miscellaneous routes directly under '/api'
-// This ensures that:
-// - POST /api/upload-cv maps to the upload-cv route in miscRoutes.js
-// - GET /api/dashboard-stats maps to the dashboard-stats route in miscRoutes.js
-app.use('/api', miscRoutes); 
+// Mount additional API routes
+// - GET /api/dashboard-stats -> miscRoutes
+// - POST /api/email/send-approved-cvs -> emailRoutes
+app.use('/api', miscRoutes);
+app.use('/api/email', emailRoutes);
 
 // If analyticsRoutes still serves other purposes not covered by miscRoutes, keep it here.
 // If it was only for dashboard stats, you might remove it or re-evaluate its purpose.

@@ -118,7 +118,7 @@ class CVAnalyzer {
     let candidateName = "Unknown Candidate";
     let email = "N/A";
     let phone = "N/A";
-    let experience = "N/A";
+    let experience = 0;
     let education = "Not Specified";
     let location = "Not Specified";
     let skills = matchedKeywords; // For simplicity, using matched keywords as skills
@@ -133,12 +133,12 @@ class CVAnalyzer {
     const phoneMatch = extractedText.match(/(\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/);
     if (phoneMatch && phoneMatch[0]) phone = phoneMatch[0];
 
-    const experienceMatch = extractedText.match(/(\d+\s*years? of experience)/i);
-    if (experienceMatch && experienceMatch[1]) experience = experienceMatch[1];
+    const experienceMatch = extractedText.match(/(\d+)\s*years?/i);
+    if (experienceMatch && experienceMatch[1]) experience = Number(experienceMatch[1]);
 
     // Status logic (e.g., if score is below min_score, set to 'rejected' or 'under review')
-    let status = totalScore >= (roleDetails ? roleDetails.min_score : 0) ? "pending" : "rejected"; 
-    if (totalScore >= 75) status = "shortlisted"; // Example
+    let status = totalScore >= (roleDetails ? roleDetails.min_score : 0) ? "reviewed" : "rejected"; 
+    if (totalScore >= 75) status = "approved";
     else if (totalScore < 50) status = "rejected";
 
 
